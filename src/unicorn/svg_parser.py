@@ -13,18 +13,15 @@ def parseLengthWithUnits( str ):
   There is a more general routine to consider in scour.py if more
   generality is ever needed.
   '''
-  u = 'px'
-  s = str.strip()
-  if s[-2:] == 'px':
-    s = s[:-2]
-  elif s[-1:] == '%':
-    u = '%'
-    s = s[:-1]
-  try:
-    v = float( s )
-  except:
-    return None, None
-  return v, u
+  units = ['pt', 'cm', 'm', 'in', 'mm', 'pc', 'px', 'ft', '%' ]
+  foundMatch = False
+  for u in units:
+      if str[-len(u):] == u:
+          value = float(str[:-len(u)])
+          foundUnit = u
+          return value, foundUnit
+          
+  return float(str), ''
 
 def subdivideCubicPath( sp, flat, i=1 ):
   """
@@ -209,6 +206,12 @@ class SvgParser:
     no units (''), units of pixels ('px'), and units of percentage ('%').
     '''
     str = self.svg.get( name )
+    conversions = {
+        'in': 90.0,
+        'ft': 1080.0,
+        'mm': 1.0 / 0.28222,
+    }
+    
     if str:
       v, u = parseLengthWithUnits( str )
       if not v:
@@ -216,6 +219,8 @@ class SvgParser:
         return None
       elif ( u == '' ) or ( u == 'px' ):
         return v
+      elif u in conversions:
+        return v * conversions[u]
       elif u == '%':
         return float( default ) * v / 100.0
       else:
