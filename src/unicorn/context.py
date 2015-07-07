@@ -85,6 +85,7 @@ class GCodeContext:
       self.codes = []
 
     def generate(self):
+      gcodeBuffer = []
       if self.continuous == 'true':
         self.num_pages = 1
 
@@ -101,14 +102,16 @@ class GCodeContext:
         codesets.append(self.loop_forever)
         for codeset in codesets:
           for line in codeset:
-            print line
+            gcodeBuffer.append(line)
       else:
         for p in range(0,self.num_pages):
           for codeset in codesets:
             for line in codeset:
-              print line
+              gcodeBuffer.append(line)
           for line in self.postscript:
-            print line
+            gcodeBuffer.append(line)
+            
+      return gcodeBuffer
 
     def start(self):
       self.codes.append("M300 S%0.2F (pen down)" % self.pen_down_angle)
