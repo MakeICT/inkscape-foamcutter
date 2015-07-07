@@ -6,6 +6,32 @@
   <dependency type="executable" location="extensions">unicorn.py</dependency>
   <dependency type="executable" location="extensions">inkex.py</dependency>
   <param name="tab" type="notebook">
+	<page name="serial_options" _gui-text="Serial Options">
+      <param name="serialPort" type="string" _gui-text="Serial port:" _gui-description="The port of your serial connection, on Windows something like 'COM1', on Linux something like: '/dev/ttyUSB0' (Default: COM1)">COM1</param>
+      <param name="serialBaudRate" type="enum" _gui-text="Serial baud rate:" _gui-description="The Baud rate of your serial connection (Default: 9600)">
+        <item value="9600">9600</item>
+        <item value="110">110</item>
+        <item value="300">300</item>
+        <item value="600">600</item>
+        <item value="1200">1200</item>
+        <item value="2400">2400</item>
+        <item value="4800">4800</item>
+        <item value="9600">9600</item>
+        <item value="14400">14400</item>
+        <item value="19200">19200</item>
+        <item value="28800">28800</item>
+        <item value="38400">38400</item>
+        <item value="56000">56000</item>
+        <item value="57600">57600</item>
+        <item value="115200">115200</item>
+      </param>
+      <param name="flowControl" type="enum" _gui-text="Flow control:" _gui-description="The Software / Hardware flow control of your serial connection (Default: Software)">
+        <_item value="xonxoff">Software (XON/XOFF)</_item>
+        <_item value="rtscts">Hardware (RTS/CTS)</_item>
+        <_item value="dsrdtrrtscts">Hardware (DSR/DTR + RTS/CTS)</_item>
+        <_item msgctxt="Flow control" value="">None</_item>
+      </param>
+    </page>
     <page name="plotter_setup" _gui-text="Setup">
       <param name="pen-up-angle" type="float" min="0.0" max="180.0" _gui-text="Pen Up Angle">50</param>
       <param name="pen-down-angle" type="float" min="0.0" max="180.0" _gui-text="Pen Down Angle">30</param>
@@ -52,14 +78,12 @@ Note: Double-check the orientation of your axes when changing these values!</_pa
 More Info: http://github.com/martymcguire/inkscape-unicorn/</_param>
     </page>
   </param>
-
-  <output>
-    <extension>.gcode</extension>
-    <mimetype>application/x-gcode</mimetype>
-    <_filetypename>MakerBot Unicorn G-Code (*.gcode)</_filetypename>
-    <_filetypetooltip>Toolpath for the MakerBot Unicorn Pen Plotter</_filetypetooltip>
-    <dataloss>true</dataloss>
-  </output>
+  <effect needs-live-preview="false" needs-document="true">
+    <object-type>path</object-type>
+    <effects-menu>
+      <submenu _name="Export"/>
+    </effects-menu>
+  </effect>
   <script>
     <command reldir="extensions" interpreter="python">unicorn.py</command>
   </script>
