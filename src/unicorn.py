@@ -26,6 +26,10 @@ from unicorn.svg_parser import SvgParser
 class MyEffect(inkex.Effect):
   def __init__(self):
     inkex.Effect.__init__(self)
+    self.OptionParser.add_option('--serialPort',      action='store', type='string',  dest='serialPort',      default='COM1',  help='Serial port')
+    self.OptionParser.add_option('--serialBaudRate',  action='store', type='string',  dest='serialBaudRate',  default='9600',  help='Serial Baud rate')
+    self.OptionParser.add_option('--flowControl',     action='store', type='string',  dest='flowControl',     default='0',     help='Flow control')
+
     self.OptionParser.add_option("--pen-up-angle",
                       action="store", type="float",
                       dest="pen_up_angle", default="50.0",
@@ -85,8 +89,6 @@ class MyEffect(inkex.Effect):
                       action="store", type="string",
                       dest="tab")
 
-  def output(self):
-    self.context.generate()
 
   def effect(self):
     self.context = GCodeContext(self.options.xy_feedrate, self.options.z_feedrate, 
@@ -102,7 +104,45 @@ class MyEffect(inkex.Effect):
     parser.parse()
     for entity in parser.entities:
       entity.get_gcode(self.context)
-
+      
+    gcodeBuffer = self.context.generate()
+    
+    try:
+        import serial
+    except ImportError, e:
+        inkex.errormsg(_("pySerial is not installed."
+            + "\n\n1. Download pySerial here (not the \".exe\"!): http://pypi.python.org/pypi/pyserial"
+            + "\n2. Extract the \"serial\" subfolder from the zip to the following folder: C:\\[Program files]\\inkscape\\python\\Lib\\"
+            + "\n3. Restart Inkscape."))
+        return
+    # send data to plotter
+    mySerial = serial.Serial()
+    mySerial.port = self.options.serialPort
+    mySerial.baudrate = self.options.serialBaudRate
+    mySerial.timeout = 0.1
+    
+    if self.options.flowControl == 'xonxoff':
+        mySerial.xonxoff = True
+    if self.options.flowControl == 'rtscts' or self.options.flowControl == 'dsrdtrrtscts':
+        mySerial.rtscts = True
+    if self.options.flowControl == 'dsrdtrrtscts':
+        mySerial.dsrdtr = True
+    try:
+        mySerial.open()
+    except Exception as inst:
+        if 'ould not open port' in inst.args[0]:
+            inkex.errormsg(_("Could not open port. Please check that your plotter is running, connected and the settings are correct."))
+            return
+        else:
+            type, value, traceback = sys.exc_info()
+        raise ValueError, ('', type, value), traceback
+    
+    for line in gcodeBuffer:
+        mySerial.write("%s\n" % line)
+        
+    mySerial.read(2)
+    mySerial.close()
+    
 if __name__ == '__main__':   #pragma: no cover
   e = MyEffect()
   e.affect()
