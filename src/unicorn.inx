@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <inkscape-extension xmlns="http://www.inkscape.org/namespace/inkscape/extension">
-  <_name>MakerBot Unicorn G-Code Output</_name>
-  <id>com.makerbot.unicorn.gcode</id>
+  <_name>Foam Cutter Sender</_name>
+  <id>org.makeict.fablab</id>
   <dependency type="extension">org.inkscape.output.svg.inkscape</dependency>
   <dependency type="executable" location="extensions">unicorn.py</dependency>
   <dependency type="executable" location="extensions">inkex.py</dependency>
@@ -84,6 +84,16 @@ More Info: http://github.com/martymcguire/inkscape-unicorn/</_param>
       <submenu _name="Export"/>
     </effects-menu>
   </effect>
+
+<!--
+  <output>
+    <extension>.gcode</extension>
+    <mimetype>application/x-gcode</mimetype>
+    <_filetypename>MakerBot Unicorn G-Code (*.gcode)</_filetypename>
+    <_filetypetooltip>Toolpath for the MakerBot Unicorn Pen Plotter</_filetypetooltip>
+    <dataloss>true</dataloss>
+  </output>
+-->
   <script>
     <command reldir="extensions" interpreter="python">unicorn.py</command>
   </script>
