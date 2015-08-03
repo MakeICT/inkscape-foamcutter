@@ -17,6 +17,7 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 '''
 import sys,os
+import time
 import inkex
 from math import *
 import getopt
@@ -88,8 +89,7 @@ class MyEffect(inkex.Effect):
     self.OptionParser.add_option("--tab",
                       action="store", type="string",
                       dest="tab")
-
-
+                      
   def effect(self):
     self.context = GCodeContext(self.options.xy_feedrate, self.options.z_feedrate, 
                            self.options.start_delay, self.options.stop_delay,
@@ -139,9 +139,42 @@ class MyEffect(inkex.Effect):
     
     for line in gcodeBuffer:
         mySerial.write("%s\n" % line)
-        
-    mySerial.read(2)
+        mySerial.read(4 + len(line))
+
     mySerial.close()
+    
+def get_serial_ports():
+    import glob
+    import serial
+    """Lists serial ports
+
+    :raises EnvironmentError:
+        On unsupported or unknown platforms
+    :returns:
+        A list of available serial ports
+    """
+    if sys.platform.startswith('win'):
+        ports = ['COM' + str(i + 1) for i in range(256)]
+
+    elif sys.platform.startswith('linux') or sys.platform.startswith('cygwin'):
+        # this is to exclude your current terminal "/dev/tty"
+        ports = glob.glob('/dev/tty[A-Za-z]*')
+
+    elif sys.platform.startswith('darwin'):
+        ports = glob.glob('/dev/tty.*')
+
+    else:
+        raise EnvironmentError('Unsupported platform')
+
+    result = []
+    for port in ports:
+        try:
+            s = serial.Serial(port)
+            s.close()
+            result.append(port)
+        except (OSError, serial.SerialException):
+            pass
+    return result
     
 if __name__ == '__main__':   #pragma: no cover
   e = MyEffect()
