@@ -84,7 +84,7 @@ class MyEffect(inkex.Effect):
 		mySerial = serial.Serial()
 		mySerial.port = self.options.serialPort
 		mySerial.baudrate = self.options.serialBaudRate
-		mySerial.timeout = 3
+		mySerial.timeout = 10
 		
 		if self.options.flowControl == 'xonxoff':
 			mySerial.xonxoff = True
@@ -99,7 +99,7 @@ class MyEffect(inkex.Effect):
 			mySerial.open()
 			readyString = mySerial.read(5)
 			if readyString != "ready":
-				inkex.errormsg(_("Invalid ready string: '%s'" % readyString))
+				inkex.errormsg("Invalid ready string: '%s'" % readyString)
 				return
 			
 			outputFile.write("opened.\n")

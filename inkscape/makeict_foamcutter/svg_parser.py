@@ -13,13 +13,13 @@ def parseLengthWithUnits( str ):
 	There is a more general routine to consider in scour.py if more
 	generality is ever needed.
 	'''
-	units = ['pt', 'cm', 'm', 'in', 'mm', 'pc', 'px', 'ft', '%' ]
+	units = ['pt', 'cm', 'in', 'mm', 'm', 'pc', 'px', 'ft', '%' ]
 	foundMatch = False
 	for u in units:
-			if str[-len(u):] == u:
-					value = float(str[:-len(u)])
-					foundUnit = u
-					return value, foundUnit
+		if str[-len(u):] == u:
+			value = float(str[:-len(u)])
+			foundUnit = u
+			return value, foundUnit
 					
 	return float(str), ''
 
