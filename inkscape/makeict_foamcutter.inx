@@ -3,7 +3,7 @@
   <_name>MakeICT Foam Cutter Sender</_name>
   <id>org.makeict.fablab</id>
   <dependency type="extension">org.inkscape.output.svg.inkscape</dependency>
-  <dependency type="executable" location="extensions">makeict-foamcutter.py</dependency>
+  <dependency type="executable" location="extensions">makeict_foamcutter.py</dependency>
   <dependency type="executable" location="extensions">inkex.py</dependency>
   <param name="tab" type="notebook">
 	<page name="serial_options" _gui-text="Serial Options">
@@ -84,16 +84,7 @@ More Info: http://github.com/martymcguire/inkscape-unicorn/</_param>
     </effects-menu>
   </effect>
 
-<!--
-  <output>
-    <extension>.gcode</extension>
-    <mimetype>application/x-gcode</mimetype>
-    <_filetypename>MakerBot Unicorn G-Code (*.gcode)</_filetypename>
-    <_filetypetooltip>Toolpath for the MakerBot Unicorn Pen Plotter</_filetypetooltip>
-    <dataloss>true</dataloss>
-  </output>
--->
   <script>
-    <command reldir="extensions" interpreter="python">unicorn.py</command>
+    <command reldir="extensions" interpreter="python">makeict_foamcutter.py</command>
   </script>
 </inkscape-extension>
