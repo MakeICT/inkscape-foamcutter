@@ -22,17 +22,16 @@ class GCodeContext:
       self.last = None
 
       self.preamble = [
-        "(Scribbled version of %s @ %.2f)" % (self.file, self.xy_feedrate),
-        "( %s )" % " ".join(sys.argv),
+#        "(Scribbled version of %s @ %.2f)" % (self.file, self.xy_feedrate),
+#        "( %s )" % " ".join(sys.argv),
         "G21 (metric ftw)",
         "G90 (absolute mode)",
         "G92 X%.2f Y%.2f Z%.2f (you are here)" % (self.x_home, self.y_home, self.z_height),
-        ""
       ]
 
       self.postscript = [
         "",
-				"(end of print job)",
+#				"(end of print job)",
 				"M300 S%0.2F (pen up)" % self.pen_up_angle,
 				"G4 P%d (wait %dms)" % (self.stop_delay, self.stop_delay),
 				"M300 S255 (turn off servo)",
@@ -50,19 +49,18 @@ class GCodeContext:
         "M18 (disengage drives)",
         "M01 (Was registration test successful?)",
         "M17 (engage drives if YES, and continue)",
-        ""
       ]
 
       self.sheet_header = [
-        "(start of sheet header)",
+ #       "(start of sheet header)",
         "G92 X%.2f Y%.2f Z%.2f (you are here)" % (self.x_home, self.y_home, self.z_height),
       ]
       if self.register_pen == 'true':
         self.sheet_header.extend(self.registration)
-      self.sheet_header.append("(end of sheet header)")
+#      self.sheet_header.append("(end of sheet header)")
 
       self.sheet_footer = [
-        "(Start of sheet footer.)",
+  #      "(Start of sheet footer.)",
         "M300 S%d (pen up)" % (self.pen_up_angle),
         "G4 P%d (wait %dms)" % (self.stop_delay, self.stop_delay),
         "G91 (relative mode)",
@@ -70,14 +68,14 @@ class GCodeContext:
         "G90 (absolute mode)",
         "G0 X%0.2f Y%0.2f F%0.2f" % (self.x_home, self.y_home, self.xy_feedrate),
         "M01 (Have you retrieved the print?)",
-        "(machine halts until 'okay')",
+#        "(machine halts until 'okay')",
         "G4 P%d (wait %dms)" % (self.start_delay, self.start_delay),
         "G91 (relative mode)",
         "G0 Z-15 F%0.2f (return to start position of current sheet)" % (self.z_feedrate),
         "G0 Z-0.01 F%0.2f (move down one sheet)" % (self.z_feedrate),
         "G90 (absolute mode)",
         "M18 (disengage drives)",
-        "(End of sheet footer)",
+#        "(End of sheet footer)",
       ]
 
       self.loop_forever = [ "M30 (Plot again?)" ]

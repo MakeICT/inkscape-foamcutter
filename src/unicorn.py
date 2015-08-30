@@ -106,6 +106,10 @@ class MyEffect(inkex.Effect):
       entity.get_gcode(self.context)
       
     gcodeBuffer = self.context.generate()
+
+    outputFile = open("/tmp/foam-cutter-output.gcode", "w")
+    outputFile.write("Output file opened\n")
+    outputFile.flush()
     
     try:
         import serial
@@ -119,7 +123,7 @@ class MyEffect(inkex.Effect):
     mySerial = serial.Serial()
     mySerial.port = self.options.serialPort
     mySerial.baudrate = self.options.serialBaudRate
-    mySerial.timeout = 0.1
+    mySerial.timeout = 3
     
     if self.options.flowControl == 'xonxoff':
         mySerial.xonxoff = True
@@ -128,20 +132,47 @@ class MyEffect(inkex.Effect):
     if self.options.flowControl == 'dsrdtrrtscts':
         mySerial.dsrdtr = True
     try:
+        outputFile.write("Opening serial port...")
+        outputFile.flush()
         mySerial.open()
+        readyString = mySerial.read(5)
+        if readyString != "ready":
+			raise Exception("Invalid ready string")
+			
+        outputFile.write("opened.\n")
+        outputFile.flush()
     except Exception as inst:
+        inkex.errormsg("%s" % inst)
+        return
         if 'ould not open port' in inst.args[0]:
-            inkex.errormsg(_("Could not open port. Please check that your plotter is running, connected and the settings are correct."))
+            inkex.errormsg(_("Could not open port. Please check that your plotter is running, connected and the settings are correct.\n\n%s" % inst))
             return
         else:
             type, value, traceback = sys.exc_info()
         raise ValueError, ('', type, value), traceback
     
+    
+    
+	outputFile.write("Writing data...\n")
+    outputFile.flush()
+    
     for line in gcodeBuffer:
-        mySerial.write("%s\n" % line)
-        mySerial.read(4 + len(line))
-
+        if line != "":
+			outputFile.write("Sending %s..." % line)
+			outputFile.flush()
+			mySerial.write("%s\n" % line)
+			outputFile.write("sent.\n")
+			outputFile.flush()
+			#mySerial.read(4 + len(line))
+        
+			readInData = mySerial.read(2)
+			outputFile.write("    Read size: %d = %s\n" % (len(readInData), readInData))
+			outputFile.flush()
+        
+    outputFile.write("Closing serial port...")
     mySerial.close()
+    outputFile.write("closed.\n")    
+    outputFile.close()
     
 def get_serial_ports():
     import glob
