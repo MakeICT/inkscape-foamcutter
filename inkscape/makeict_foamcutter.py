@@ -99,7 +99,8 @@ class MyEffect(inkex.Effect):
 			mySerial.open()
 			readyString = mySerial.read(5)
 			if readyString != "ready":
-				raise Exception("Invalid ready string: '%s'" % readyString)
+				inkex.errormsg(_("Invalid ready string: '%s'" % readyString))
+				return
 			
 			outputFile.write("opened.\n")
 			outputFile.flush()
@@ -127,6 +128,7 @@ class MyEffect(inkex.Effect):
 				outputFile.flush()
 				
 		outputFile.write("Closing serial port...")
+		mySerial.flush()
 		mySerial.close()
 		outputFile.write("closed.\n")    
 		outputFile.close()
