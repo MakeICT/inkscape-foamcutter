@@ -21,8 +21,8 @@ import time
 import inkex
 from math import *
 import getopt
-from unicorn.context import GCodeContext
-from unicorn.svg_parser import SvgParser
+from makeict_foamcutter.context import GCodeContext
+from makeict_foamcutter.svg_parser import SvgParser
 
 class MyEffect(inkex.Effect):
   def __init__(self):
