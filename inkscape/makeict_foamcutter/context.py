@@ -34,7 +34,7 @@ class GCodeContext:
 #				"(end of print job)",
 				"M300 S%0.2F (pen up)" % self.pen_up_angle,
 				"G4 P%d (wait %dms)" % (self.stop_delay, self.stop_delay),
-				"M300 S255 (turn off servo)",
+#				"M300 S255 (turn off servo)",
 				"G1 X0 Y0 F%0.2F" % self.xy_feedrate,
 				"G1 Z%0.2F F%0.2F (go up to finished level)" % (self.finished_height, self.z_feedrate),
 				"G1 X%0.2F Y%0.2F F%0.2F (go home)" % (self.x_home, self.y_home, self.xy_feedrate),
