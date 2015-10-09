@@ -73,6 +73,7 @@ class MyEffect(inkex.Effect):
 
 		container = gtk.VBox(False, 10)
 		
+		self.portSelector = gtk.combo_box_new_text()
 		for p in self.ports:
 			self.portSelector.append_text(p)
 		self.portSelector.set_active(0)
@@ -117,19 +118,19 @@ class MyEffect(inkex.Effect):
 		arrows.attach(b, 2, 3, 1 ,2)
 
 		b = gtk.Button("⇐")
-		b.connect("clicked", self.moveX, -10 * stepSize)
+		b.connect("clicked", self.moveX, 10 * stepSize)
 		arrows.attach(b, 0, 1, 2, 3)
 
 		b = gtk.Button("←")
-		b.connect("clicked", self.moveX, -stepSize)
+		b.connect("clicked", self.moveX, stepSize)
 		arrows.attach(b, 1, 2, 2, 3)
 
 		b = gtk.Button("→")
-		b.connect("clicked", self.moveX, stepSize)
+		b.connect("clicked", self.moveX, -stepSize)
 		arrows.attach(b, 3, 4, 2, 3)
 
 		b = gtk.Button("⇒")
-		b.connect("clicked", self.moveX, 10 * stepSize)
+		b.connect("clicked", self.moveX, -10 * stepSize)
 		arrows.attach(b, 4, 5, 2, 3)
 
 		b = gtk.Button("↓")
@@ -171,7 +172,7 @@ class MyEffect(inkex.Effect):
 		self.serialOptions.show_all()
 		self.connectButton.show()
 		container.show()
-		self.window.show_all()
+		self.window.show()
 		
 		gtk.main()
 		
@@ -278,6 +279,7 @@ class MyEffect(inkex.Effect):
 		try:
 			self.pos = [0, 0]
 			self.send("G92 X0.0 Y0.0")
+			self.updatePosition()
 		except Exception as exc:
 			self.showError(exc)
 			
@@ -313,7 +315,7 @@ class MyEffect(inkex.Effect):
 		try:
 			data = self.generateBuffer()
 			for line in data:
-				if line != "":
+				if line != "" and line[0] != "(":
 					inkex.debug("SEND: %s" % line)
 					self.send(line)
 		except Exception as exc:

@@ -62,6 +62,7 @@ public:
 
   
   void setTargetPosition(double pos);
+  void setCurrentPosition(double pos);
   double getCurrentPosition();
   
   void enableStepper(bool enabled);

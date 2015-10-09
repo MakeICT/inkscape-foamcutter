@@ -27,6 +27,8 @@
  * PINS
  */
  
+#define SPINDLE_ENABLE 4
+
 #define XAXIS_ENABLE_PIN 6
 #define XAXIS_DIR_PIN 7
 #define XAXIS_STEP_PIN 8
@@ -95,8 +97,9 @@ void setup(){
 	Serial.begin(9600);
 
 	clear_buffer();
-	pinMode(13, OUTPUT);
-	digitalWrite(13, LOW);
+	
+	pinMode(SPINDLE_ENABLE, OUTPUT);
+	digitalWrite(SPINDLE_ENABLE, LOW);
 
 	servo.attach(SERVO_PIN);
 	servo.write(DEFAULT_PEN_UP_POSITION);
@@ -118,6 +121,7 @@ void setup(){
 	commitSteppers(maxFeedrate);
 	delay(2000);
 	xAxisStepper.enableStepper(false);
+	digitalWrite(SPINDLE_ENABLE, LOW);
 #endif
 
 	Serial.print("ready");
@@ -148,11 +152,13 @@ void commitSteppers(double speedrate){
 	long deltaStepsX = xAxisStepper.delta;
 	if(deltaStepsX != 0L){
 		xAxisStepper.enableStepper(true);
+		digitalWrite(SPINDLE_ENABLE, HIGH);
 	}
 
 	long deltaStepsY = yAxisStepper.delta;
 	if(deltaStepsY != 0L){
 		yAxisStepper.enableStepper(true);
+		digitalWrite(SPINDLE_ENABLE, HIGH);
 	}
 	long masterSteps = (deltaStepsX>deltaStepsY)?deltaStepsX:deltaStepsY;
 
@@ -302,6 +308,10 @@ void process_commands(char command[], int command_length){ // deals with standar
 			case 91: // G91, Incremental Positioning
 				absoluteMode = false;
 				Serial.print("ok");
+			case 92:
+				xAxisStepper.setCurrentPosition(tempX);
+				yAxisStepper.setCurrentPosition(tempY);
+				Serial.print("ok");
 			break;
 			default:
 				Serial.print("ok");
@@ -333,11 +343,6 @@ void process_commands(char command[], int command_length){ // deals with standar
 						servoEnabled=false;
 					}
 					servo.write((int)value);
-//          if(value > 40){      // LED showes the position of the servo
-//            digitalWrite(13,HIGH);
-//          }else{
-//            digitalWrite(13,LOW);
-//          }                    //-------------------------------
 					Serial.print("ok");
 				}
 				break;
@@ -349,6 +354,7 @@ void process_commands(char command[], int command_length){ // deals with standar
 					commitSteppers(maxFeedrate);
 					delay(2000);
 					xAxisStepper.enableStepper(false);
+					digitalWrite(SPINDLE_ENABLE, LOW);
 				}
 				break;
 				
@@ -359,6 +365,7 @@ void process_commands(char command[], int command_length){ // deals with standar
 					commitSteppers(maxFeedrate);
 					delay(2000);
 					yAxisStepper.enableStepper(false);
+					digitalWrite(SPINDLE_ENABLE, LOW);
 				}
 				break;
 				

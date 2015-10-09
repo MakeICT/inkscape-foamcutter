@@ -26,7 +26,7 @@ class GCodeContext:
 #        "( %s )" % " ".join(sys.argv),
         "G21 (metric ftw)",
         "G90 (absolute mode)",
-        "G92 X%.2f Y%.2f Z%.2f (you are here)" % (self.x_home, self.y_home, self.z_height),
+#        "G92 X%.2f Y%.2f Z%.2f (you are here)" % (self.x_home, self.y_home, self.z_height),
       ]
 
       self.postscript = [
@@ -53,7 +53,7 @@ class GCodeContext:
 
       self.sheet_header = [
  #       "(start of sheet header)",
-        "G92 X%.2f Y%.2f Z%.2f (you are here)" % (self.x_home, self.y_home, self.z_height),
+#        "G92 X%.2f Y%.2f Z%.2f (you are here)" % (self.x_home, self.y_home, self.z_height),
       ]
       if self.register_pen == 'true':
         self.sheet_header.extend(self.registration)

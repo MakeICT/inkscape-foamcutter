@@ -118,6 +118,11 @@ double StepperModel::getCurrentPosition()
     return (double)currentStepcount/steps_per_mm;
 }
 
+void StepperModel::setCurrentPosition(double pos)
+{
+	currentStepcount = getStepsForMM(pos);
+}
+
 void StepperModel::enableStepper(bool enabled)
 {
   digitalWrite(enablePin, !enabled);
