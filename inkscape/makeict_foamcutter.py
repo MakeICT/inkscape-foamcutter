@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
 '''
 Copyright (c) 2015 MakeICT
 
@@ -24,9 +26,22 @@ import getopt
 from makeict_foamcutter.context import GCodeContext
 from makeict_foamcutter.svg_parser import SvgParser
 
+try:
+	import serial
+except ImportError, e:
+	inkex.errormsg(_("pySerial is not installed."
+		+ "\n\n1. Download pySerial here (not the \".exe\"!): http://pypi.python.org/pypi/pyserial"
+		+ "\n2. Extract the \"serial\" subfolder from the zip to the following folder: C:\\[Program files]\\inkscape\\python\\Lib\\"
+		+ "\n3. Restart Inkscape."
+	))
+	exit()
+
+
+import pygtk, gtk
+
 class MyEffect(inkex.Effect):
 	def __init__(self):
-		inkex.Effect.__init__(self)
+		inkex.Effect.__init__(self, ports)
 		self.OptionParser.add_option('--serialPort',			action='store', type='string',	dest='serialPort',				default='COM1',		help='Serial port')
 		self.OptionParser.add_option('--serialBaudRate',		action='store', type='string',	dest='serialBaudRate',			default='9600',		help='Serial Baud rate')
 		self.OptionParser.add_option('--flowControl',			action='store', type='string',	dest='flowControl',				default='0',		help='Flow control')
@@ -45,8 +60,122 @@ class MyEffect(inkex.Effect):
 		self.OptionParser.add_option("--continuous",			action="store",	type="string",	dest="continuous", 				default="false",	help="Plot continuously until stopped.")
 		self.OptionParser.add_option("--pause-on-layer-change",	action="store", type="string",	dest="pause_on_layer_change",	default="false",	help="Pause on layer changes.")
 		self.OptionParser.add_option("--tab",					action="store", type="string",	dest="tab")
+		
+		self.serial = None
+		self.pos = [0, 0]
+		
+		self.ports = ports
 											
 	def effect(self):
+		self.window = gtk.Window(gtk.WINDOW_TOPLEVEL)
+		self.window.connect("destroy", self.destroy)
+		self.window.set_border_width(10)
+
+		container = gtk.VBox(False, 10)
+		
+		for p in self.ports:
+			self.portSelector.append_text(p)
+		self.portSelector.set_active(0)
+		
+#		bauds = ["110", "300", "600", "1200", "2400", "4800", "9600", "14400", "19200", "28800", "38400", "56000", "57600", "115200"]
+#		self.baudSelector = gtk.combo_box_new_text()
+#		for i, rate in enumerate(bauds):
+#			self.baudSelector.append_text("%s" % rate)
+#			if rate == self.options.serialBaudRate:
+#				self.baudSelector.set_active(i)
+#
+#		self.flowControlSelector = gtk.combo_box_new_text()
+#		self.flowControlSelector.append_text("XON/XOFF")
+#		self.flowControlSelector.append_text("RTS/CTS")
+#		self.flowControlSelector.append_text("DSR/DTR + RTS/CTS")
+#
+		self.serialOptions = gtk.Table(3, 2, False)
+		self.serialOptions.attach(gtk.Label("Serial port"), 0, 1, 0, 1)
+		self.serialOptions.attach(self.portSelector, 1, 2, 0, 1)
+#		self.serialOptions.attach(gtk.Label("Baud rate"), 0, 1, 1, 2)
+#		self.serialOptions.attach(self.baudSelector, 1, 2, 1, 2)
+#		self.serialOptions.attach(gtk.Label("Flow control"), 0, 1, 2, 3)
+#		self.serialOptions.attach(self.flowControlSelector, 1, 2, 2, 3)
+#		
+		container.add(self.serialOptions)
+		
+		self.connectButton = gtk.Button("Connect")
+		self.connectButton.connect("clicked", self.toggleConnect)
+		container.add(self.connectButton)
+		
+		stepSize = 1
+		
+		self.controls = gtk.VBox(False, 10)
+		
+		arrows = gtk.Table(5, 5, True)
+		b = gtk.Button("⇑")
+		b.connect("clicked", self.moveY, 10 * stepSize)
+		arrows.attach(b, 2, 3, 0, 1)
+		
+		b = gtk.Button("↑")
+		b.connect("clicked", self.moveY, stepSize)
+		arrows.attach(b, 2, 3, 1 ,2)
+
+		b = gtk.Button("⇐")
+		b.connect("clicked", self.moveX, -10 * stepSize)
+		arrows.attach(b, 0, 1, 2, 3)
+
+		b = gtk.Button("←")
+		b.connect("clicked", self.moveX, -stepSize)
+		arrows.attach(b, 1, 2, 2, 3)
+
+		b = gtk.Button("→")
+		b.connect("clicked", self.moveX, stepSize)
+		arrows.attach(b, 3, 4, 2, 3)
+
+		b = gtk.Button("⇒")
+		b.connect("clicked", self.moveX, 10 * stepSize)
+		arrows.attach(b, 4, 5, 2, 3)
+
+		b = gtk.Button("↓")
+		b.connect("clicked", self.moveY, -stepSize)
+		arrows.attach(b, 2, 3, 3, 4)
+
+		b = gtk.Button("⇓")
+		b.connect("clicked", self.moveY, -10 * stepSize)
+		arrows.attach(b, 2, 3, 4, 5)
+		
+		self.controls.add(arrows)
+
+		homeButtons = gtk.HBox(True)
+		b = gtk.Button("Set Home")
+		b.connect("clicked", self.setHome, None)
+		homeButtons.add(b)
+		
+		b = gtk.Button("Go Home")
+		b.connect("clicked", self.goHome, None)
+		homeButtons.add(b)
+		
+		self.controls.add(homeButtons)
+		
+		sendButtons = gtk.HBox(True)
+#		b = gtk.Button("▶ Selection")
+#		b.connect("clicked", self.sendSelection, None)
+#		sendButtons.add(b)
+		
+		b = gtk.Button("▶ Send document")
+		b.connect("clicked", self.sendAll, None)
+		sendButtons.add(b)
+		
+		self.controls.add(sendButtons)
+
+		container.add(self.controls)
+		
+		self.window.add(container)
+		
+		self.serialOptions.show_all()
+		self.connectButton.show()
+		container.show()
+		self.window.show_all()
+		
+		gtk.main()
+		
+	def generateBuffer(self):
 		self.context = GCodeContext(
 			self.options.xy_feedrate,
 			self.options.z_feedrate, 
@@ -64,74 +193,131 @@ class MyEffect(inkex.Effect):
 		for entity in parser.entities:
 			entity.get_gcode(self.context)
 			
-		gcodeBuffer = self.context.generate()
+		return self.context.generate()
+		
+	def send(self, message):
+		if self.serial is None:
+			self.disconnect()
+			raise Exception("Not connected :(")
+			
+		self.serial.write("%s\n" % message)
+		ok = self.serial.read(2)
+		if ok != "ok":
+			raise Exception("Invalid response: '%s'" % ok)
+		
+	def destroy(self, widget, data=None):
+		gtk.main_quit()
 
-		outputFile = open("/tmp/foam-cutter-output.gcode", "w")
-		outputFile.write("Output file opened\n")
-		outputFile.flush()
+	def toggleConnect(self, widget, data=None):
+		if self.serial is None:
+			try:
+				self.saveOptions()
+				self.connect()
+				self.connectButton.set_label("Disconnect")
+				self.controls.show_all()
+			except Exception as exc:
+				self.showError(exc)
+		else:
+			self.disconnect()
+			self.connectButton.set_label("Connect")
+			self.controls.hide()
 		
+	def saveOptions(self):
+		self.options.serialPort = self.portSelector.get_active_text()
+#		self.options.serialBaudRate = self.baudSelector.get_active_text()
+#		self.options.flowControl = self.flowControlSelector.get_active_text()
+	
+	def connect(self):
 		try:
-			import serial
-		except ImportError, e:
-			inkex.errormsg(_("pySerial is not installed."
-				+ "\n\n1. Download pySerial here (not the \".exe\"!): http://pypi.python.org/pypi/pyserial"
-				+ "\n2. Extract the \"serial\" subfolder from the zip to the following folder: C:\\[Program files]\\inkscape\\python\\Lib\\"
-				+ "\n3. Restart Inkscape."
-			))
-			return
-				
-		# send data to plotter
-		mySerial = serial.Serial()
-		mySerial.port = self.options.serialPort
-		mySerial.baudrate = self.options.serialBaudRate
-		mySerial.timeout = 10
-		
-		if self.options.flowControl == 'xonxoff':
-			mySerial.xonxoff = True
-		if self.options.flowControl == 'rtscts' or self.options.flowControl == 'dsrdtrrtscts':
-			mySerial.rtscts = True
-		if self.options.flowControl == 'dsrdtrrtscts':
-			mySerial.dsrdtr = True
+			self.serial = serial.Serial()
+			self.serial.port = self.options.serialPort
+			self.serial.baudrate = self.options.serialBaudRate
+			self.serial.timeout = 10
+
+			if self.options.flowControl == 'XON/XOFF':
+				self.serial.xonxoff = True
+			if self.options.flowControl == 'RTS/CTS' or self.options.flowControl == 'DSR/DTR + RTS/CTS':
+				self.serial.rtscts = True
+			if self.options.flowControl == 'DSR/DTR + RTS/CTS':
+				self.serial.dsrdtr = True
 			
-		try:
-			outputFile.write("Opening serial port...")
-			outputFile.flush()
-			mySerial.open()
-			readyString = mySerial.read(5)
+			self.serial.open()
+			readyString = self.serial.read(5)
 			if readyString != "ready":
-				inkex.errormsg("Invalid ready string: '%s'" % readyString)
-				return
-			
-			outputFile.write("opened.\n")
-			outputFile.flush()
-		except Exception as inst:
-			if 'ould not open port' in inst.args[0]:
-				inkex.errormsg(_("Could not open port. Please check that your plotter is running, connected and the settings are correct.\n\n%s" % inst))
-				return
-			else:
-				type, value, traceback = sys.exc_info()
-				raise ValueError, ('', type, value), traceback
-		
-		outputFile.write("Writing data...\n")
-		outputFile.flush()
-		
-		for line in gcodeBuffer:
-			if line != "":
-				outputFile.write("Sending %s..." % line)
-				outputFile.flush()
-				mySerial.write("%s\n" % line)
-				outputFile.write("sent.\n")
-				outputFile.flush()
-					
-				readInData = mySerial.read(2)
-				outputFile.write("    Read size: %d = %s\n" % (len(readInData), readInData))
-				outputFile.flush()
+				raise Exception("Invalid ready string: '%s'" % readyString)
+
+			self.send("G21 (metric ftw)")
+			self.send("G90 (absolute mode)")
+			self.send("G92 X0.0 Y0.0")
 				
-		outputFile.write("Closing serial port...")
-		mySerial.flush()
-		mySerial.close()
-		outputFile.write("closed.\n")    
-		outputFile.close()
+		except Exception as exc:
+			self.serial = None
+			raise exc
+			
+	def disconnect(self):
+		try:
+			self.serial.flush()
+			self.serial.close()
+		except:
+			pass
+		finally:
+			self.serial = None
+		
+	def showError(self, msg):
+		if isinstance(msg, OSError):
+			msg = str(msg)
+		elif isinstance(msg, Exception):
+			msg = msg.message
+			
+		message = gtk.MessageDialog(type=gtk.MESSAGE_ERROR, buttons=gtk.BUTTONS_CLOSE, message_format="Error: %s")
+		message.set_markup(msg)
+		message.run()
+		message.destroy()
+		
+	def setHome(self, widget, data=None):
+		try:
+			self.pos = [0, 0]
+			self.send("G92 X0.0 Y0.0")
+		except Exception as exc:
+			self.showError(exc)
+			
+	def goHome(self, widget, data=None):
+		try:
+			self.pos = [0, 0]
+			self.updatePosition()
+		except Exception as exc:
+			self.showError(exc)
+		
+	def updatePosition(self):
+		try:
+			self.send("G1 X%0.2F Y%0.2F F%0.2F" % (self.pos[0], self.pos[1], self.options.xy_feedrate))
+		except Exception as exc:
+			self.showError(exc)
+
+			
+	def moveX(self, widget, data=None):
+		step = data
+		self.pos[0] += step
+		self.updatePosition()
+
+	def moveY(self, widget, data=None):
+		step = data
+		self.pos[1] += step
+		self.updatePosition()
+
+#	def sendSelection(self, widget, data=None):
+#		self.showError("Not yet implemented")
+#		pass
+		
+	def sendAll(self, widget, data=None):
+		try:
+			data = self.generateBuffer()
+			for line in data:
+				if line != "":
+					inkex.debug("SEND: %s" % line)
+					self.send(line)
+		except Exception as exc:
+			self.showError(exc)
 		
 def get_serial_ports():
 	import glob
@@ -160,7 +346,14 @@ def get_serial_ports():
 			pass
 			
 	return result
-		
+
 if __name__ == '__main__':   #pragma: no cover
-	e = MyEffect()
-	e.affect()
+	ports = get_serial_ports()
+	if len(ports) == 0:
+		inkex.errormsg("No serial ports found :(")
+		inkex.errormsg("Please connect your device and try again")
+	else:
+		e = MyEffect()
+		e.affect()		
+
+	
