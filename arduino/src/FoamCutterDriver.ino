@@ -56,12 +56,13 @@ StepperModel xAxisStepper(
 	XAXIS_DIR_PIN, XAXIS_STEP_PIN,
 	XAXIS_ENABLE_PIN, XAXIS_ENDSTOP_PIN,
 	XAXIS_MIN_STEPCOUNT, XAXIS_MAX_STEPCOUNT,
-	200.0, 16
+	100.0, 16
 );
-StepperModel rotationStepper(
+StepperModel yAxisStepper(
 	YAXIS_DIR_PIN, YAXIS_STEP_PIN,
 	YAXIS_ENABLE_PIN, YAXIS_ENDSTOP_PIN,
-	0, 0, 200.0, 16
+	0, 0,
+	100.0, 16
 );
 
 SoftwareServo servo;
@@ -137,7 +138,7 @@ void doInterrupt(){
 			isRunning = false;
 			Serial.print("ok");
 		}else{
-			rotationStepper.doStep(intervals);
+			yAxisStepper.doStep(intervals);
 			xAxisStepper.doStep(intervals);
 		}
 	}
@@ -149,14 +150,14 @@ void commitSteppers(double speedrate){
 		xAxisStepper.enableStepper(true);
 	}
 
-	long deltaStepsY = rotationStepper.delta;
+	long deltaStepsY = yAxisStepper.delta;
 	if(deltaStepsY != 0L){
-		rotationStepper.enableStepper(true);
+		yAxisStepper.enableStepper(true);
 	}
 	long masterSteps = (deltaStepsX>deltaStepsY)?deltaStepsX:deltaStepsY;
 
 	double deltaDistanceX = xAxisStepper.targetPosition-xAxisStepper.getCurrentPosition();
-	double deltaDistanceY = rotationStepper.targetPosition-rotationStepper.getCurrentPosition();
+	double deltaDistanceY = yAxisStepper.targetPosition-yAxisStepper.getCurrentPosition();
 			
 	// how long is our line length?
 	double distance = sqrt(deltaDistanceX*deltaDistanceX+deltaDistanceY*deltaDistanceY);
@@ -169,7 +170,7 @@ void commitSteppers(double speedrate){
 	intervals_remaining = intervals;
 	const long negative_half_interval = -intervals / 2;
 	
-	rotationStepper.counter = negative_half_interval;
+	yAxisStepper.counter = negative_half_interval;
 	xAxisStepper.counter = negative_half_interval;
 
 	isRunning=true;
@@ -220,7 +221,7 @@ void process_commands(char command[], int command_length){ // deals with standar
 		int codenum = (int)strtod(&command[1], NULL);
 		
 		double tempX = xAxisStepper.getCurrentPosition();
-		double tempY = rotationStepper.getCurrentPosition();
+		double tempY = yAxisStepper.getCurrentPosition();
 		
 		double xVal, yVal, iVal, jVal, rVal, pVal;
 
@@ -261,19 +262,19 @@ void process_commands(char command[], int command_length){ // deals with standar
 		switch(codenum){
 			case 0: // G0, Rapid positioning
 				xAxisStepper.setTargetPosition(tempX);
-				rotationStepper.setTargetPosition(tempY);
+				yAxisStepper.setTargetPosition(tempY);
 				commitSteppers(maxFeedrate);
 			break;
 			case 1: // G1, linear interpolation at specified speed
 				xAxisStepper.setTargetPosition(tempX);
-				rotationStepper.setTargetPosition(tempY);
+				yAxisStepper.setTargetPosition(tempY);
 				commitSteppers(feedrate);
 			break;
 			case 2: // G2, Clockwise arc
 			case 3: // G3, Counterclockwise arc
 				if(hasIVal && hasJVal){
 						double centerX=xAxisStepper.getCurrentPosition()+iVal;
-						double centerY=rotationStepper.getCurrentPosition()+jVal;
+						double centerY=yAxisStepper.getCurrentPosition()+jVal;
 						drawArc(centerX, centerY, tempX, tempY, (codenum==2));
 				}else if(hasRVal){
 					//drawRadius(tempX, tempY, rVal, (codenum==2));
@@ -312,7 +313,7 @@ void process_commands(char command[], int command_length){ // deals with standar
 		switch(codenum){   
 			case 18: // Disable Drives
 				xAxisStepper.resetStepper();
-				rotationStepper.resetStepper();
+				yAxisStepper.resetStepper();
 				Serial.print("ok");
 			break;
 
@@ -353,11 +354,11 @@ void process_commands(char command[], int command_length){ // deals with standar
 				
 			case 401: // Propretary: Reset Y-Axis-Stepper settings to new object diameter
 				if(getValue('S', command, &value)){
-					rotationStepper.resetSteppersForObjectDiameter(value);
-					rotationStepper.setTargetPosition(0.);
+					yAxisStepper.resetSteppersForObjectDiameter(value);
+					yAxisStepper.setTargetPosition(0.);
 					commitSteppers(maxFeedrate);
 					delay(2000);
-					rotationStepper.enableStepper(false);
+					yAxisStepper.enableStepper(false);
 				}
 				break;
 				
@@ -406,7 +407,7 @@ void drawArc(double centerX, double centerY, double endpointX, double endpointY,
 
 	// figure out our deltas
 	double currentX = xAxisStepper.getCurrentPosition();
-	double currentY = rotationStepper.getCurrentPosition();
+	double currentY = yAxisStepper.getCurrentPosition();
 	aX = currentX - centerX;
 	aY = currentY - centerY;
 	bX = endpointX - centerX;
@@ -456,11 +457,11 @@ void drawArc(double centerX, double centerY, double endpointX, double endpointY,
 
 		// calculate our waypoint.
 		newPointX = centerX + radius * cos(angleA + angle * ((double) step / steps));
-		newPointY= centerY + radius	* sin(angleA + angle * ((double) step / steps));
+		newPointY = centerY + radius * sin(angleA + angle * ((double) step / steps));
 
 		// start the move
 		xAxisStepper.setTargetPosition(newPointX);
-		rotationStepper.setTargetPosition(newPointY);
+		yAxisStepper.setTargetPosition(newPointY);
 		commitSteppers(feedrate);
 		
 		while(isRunning){
@@ -470,6 +471,7 @@ void drawArc(double centerX, double centerY, double endpointX, double endpointY,
 		};
 	}
 }
+
 
 /* Make life easier for vim users */
 /* vim:set filetype=cpp: */
