@@ -43,8 +43,8 @@ except ImportError, e:
 import pygtk, gtk
 
 class MyEffect(inkex.Effect):
-	def __init__(self):
-		inkex.Effect.__init__(self, ports)
+	def __init__(self, ports):
+		inkex.Effect.__init__(self)
 		self.OptionParser.add_option('--serialPort',			action='store', type='string',	dest='serialPort',				default='COM1',		help='Serial port')
 		self.OptionParser.add_option('--serialBaudRate',		action='store', type='string',	dest='serialBaudRate',			default='9600',		help='Serial Baud rate')
 		self.OptionParser.add_option('--flowControl',			action='store', type='string',	dest='flowControl',				default='0',		help='Flow control')
@@ -180,14 +180,17 @@ class MyEffect(inkex.Effect):
 		self.serialOptions.show_all()
 		self.connectButton.show()
 		container.show()
-		self.window.show_all()
+		self.window.show()
 		
 		for i, p in enumerate(self.ports):
 			self.portSelector.set_active(i)
 			try:
-				self.connect()
+				self.connect(2.5)
+				self.connectButton.set_label("Disconnect")
+				self.controls.show_all()
 				break
-			except:
+			except Exception as exc:
+#				inkex.debug("Error %d %s" % (i, str(exc)))
 				pass
 		
 		gtk.main()
@@ -207,13 +210,12 @@ class MyEffect(inkex.Effect):
 		#set the button's style to the one you created
 		widget.set_style(style)
 		
-	def dehighlight(self, widget, color="#000000"):
+	def dehighlight(self, widget, color="#000"):
 		if widget in self.backgroundColors:
 			self.highlight(widget, self.backgroundColors[widget])
 		else:
 			self.highlight(widget, color)
 
-		
 	def generateBuffer(self):
 		self.context = GCodeContext(
 			self.options.xy_feedrate,
@@ -238,9 +240,10 @@ class MyEffect(inkex.Effect):
 		if self.serial is None:
 			self.disconnect()
 			raise Exception("Not connected :(")
-			
+		
+		#inkex.debug(message)
 		self.serial.write("%s\n" % message)
-		ok = self.serial.read(2)
+		ok = self.serial.read(2).decode("ascii")
 		if ok != "ok":
 			raise Exception("Invalid response: '%s'" % ok)
 		
@@ -250,7 +253,6 @@ class MyEffect(inkex.Effect):
 	def toggleConnect(self, widget, data=None):
 		if self.serial is None:
 			try:
-				self.saveOptions()
 				self.connect()
 				self.connectButton.set_label("Disconnect")
 				self.controls.show_all()
@@ -266,12 +268,14 @@ class MyEffect(inkex.Effect):
 #		self.options.serialBaudRate = self.baudSelector.get_active_text()
 #		self.options.flowControl = self.flowControlSelector.get_active_text()
 	
-	def connect(self):
+	def connect(self, timeout=5):
 		try:
+			self.saveOptions()
+			
 			self.serial = serial.Serial()
 			self.serial.port = self.options.serialPort
 			self.serial.baudrate = self.options.serialBaudRate
-			self.serial.timeout = 10
+			self.serial.timeout = timeout
 
 			if self.options.flowControl == 'XON/XOFF':
 				self.serial.xonxoff = True
@@ -281,13 +285,17 @@ class MyEffect(inkex.Effect):
 				self.serial.dsrdtr = True
 			
 			self.serial.open()
-			readyString = self.serial.read(26)
-			if readyString != "MakeICT Foam Cutter ready!":
-				raise Exception("Invalid ready string: '%s'" % readyString)
+			#time.sleep(5)
+			initString = self.serial.read(19).decode("ascii")
+			if initString != "MakeICT Foam Cutter":
+				s = "Invalid init string: '%s'" % initString
+				raise Exception(s)
+
+			self.serial.timeout = None
 
 			self.send("G21 (metric ftw)")
 			self.send("G90 (absolute mode)")
-			self.send("G92 X0.0 Y0.0")
+			self.send("G92 X%0.2f Y%0.2f" % (self.pos[0], self.pos[1]))
 				
 		except Exception as exc:
 			self.serial = None
@@ -380,16 +388,7 @@ def get_serial_ports():
 	else:
 		raise EnvironmentError('Unsupported platform')
 
-	result = []
-	for port in ports:
-		try:
-			s = serial.Serial(port)
-			s.close()
-			result.append(port)
-		except (OSError, serial.SerialException):
-			pass
-			
-	return result
+	return ports
 
 if __name__ == '__main__':   #pragma: no cover
 	ports = get_serial_ports()
@@ -397,7 +396,7 @@ if __name__ == '__main__':   #pragma: no cover
 		inkex.errormsg("No serial ports found :(")
 		inkex.errormsg("Please connect your device and try again")
 	else:
-		e = MyEffect()
+		e = MyEffect(ports)
 		e.affect()		
 
 	
