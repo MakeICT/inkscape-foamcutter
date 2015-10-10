@@ -1,7 +1,11 @@
 from math import cos, sin, radians
 import pprint
+import inkex
 
 class Entity:
+	def __init__(self):
+		self.style = ''
+		
 	def get_gcode(self,context):
 		#raise NotImplementedError()
 		return "NIE"
@@ -74,11 +78,20 @@ class PolyLine(Entity):
 
 	def get_gcode(self,context):
 		"Emit gcode for drawing polyline"
+
 		if hasattr(self, 'segments'):
+			opacity = 1
+			stylePairs = self.style.split(";")
+			for sp in stylePairs:
+				k,v = sp.split(":")
+				if k == "opacity":
+					opacity = float(v)
+				
+			context.pen_down_angle = (context.pen_max_down_angle-context.pen_up_angle) * opacity + context.pen_max_down_angle
+
 			for points in self.segments:
 				start = points[0]
 	
-				context.codes.append("(" + str(self) + ")")
 				context.go_to_point(start[0],start[1])
 				context.start()
 				for point in points[1:]:

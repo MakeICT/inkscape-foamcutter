@@ -74,6 +74,10 @@ class SvgPath(entities.PolyLine):
 		p = cubicsuperpath.parsePath(d)
 		applyTransformToPath(mat, p)
 
+		s = node.get('style')
+		if s:
+			self.style = s
+
 		# p is now a list of lists of cubic beziers [ctrl p1, ctrl p2, endpoint]
 		# where the start-point is the last point in the previous segment
 		self.segments = []
@@ -89,6 +93,8 @@ class SvgPath(entities.PolyLine):
 		s = node.get('style')
 		if s:
 			newpath.set('style',s)
+			self.style = s
+
 		t = node.get('transform')
 		if t:
 			newpath.set('transform',t)
@@ -144,7 +150,8 @@ class SvgEllipse(SvgPath):
 		rx = float(node.get('rx','0'))
 		ry = float(node.get('ry','0'))
 		SvgPath.load(self,self.make_ellipse_path(rx,ry,node), mat)
-	def make_ellipse_path(rx, ry, node):
+		
+	def make_ellipse_path(self, rx, ry, node):
 		if rx == 0 or ry == 0:
 			return None
 		cx = float(node.get('cx','0'))

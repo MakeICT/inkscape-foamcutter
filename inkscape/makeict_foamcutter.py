@@ -1,9 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-#	cutting depth
-#	auto-connect
-
 '''
 Copyright (c) 2015 MakeICT
 
@@ -241,7 +238,6 @@ class MyEffect(inkex.Effect):
 			self.disconnect()
 			raise Exception("Not connected :(")
 		
-		#inkex.debug(message)
 		self.serial.write("%s\n" % message)
 		ok = self.serial.read(2).decode("ascii")
 		if ok != "ok":
