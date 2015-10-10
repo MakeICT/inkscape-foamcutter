@@ -75,41 +75,12 @@ class MyEffect(inkex.Effect):
 		self.window.connect("destroy", self.destroy)
 		self.window.set_border_width(10)
 
-		container = gtk.VBox(False, 10)
-		
-		self.portSelector = gtk.combo_box_new_text()
-		for p in self.ports:
-			self.portSelector.append_text(p)
-		self.portSelector.set_active(0)
-		
-#		bauds = ["110", "300", "600", "1200", "2400", "4800", "9600", "14400", "19200", "28800", "38400", "56000", "57600", "115200"]
-#		self.baudSelector = gtk.combo_box_new_text()
-#		for i, rate in enumerate(bauds):
-#			self.baudSelector.append_text("%s" % rate)
-#			if rate == self.options.serialBaudRate:
-#				self.baudSelector.set_active(i)
-#
-#		self.flowControlSelector = gtk.combo_box_new_text()
-#		self.flowControlSelector.append_text("XON/XOFF")
-#		self.flowControlSelector.append_text("RTS/CTS")
-#		self.flowControlSelector.append_text("DSR/DTR + RTS/CTS")
-#
-		self.serialOptions = gtk.Table(3, 2, False)
-		self.serialOptions.attach(gtk.Label("Serial port"), 0, 1, 0, 1)
-		self.serialOptions.attach(self.portSelector, 1, 2, 0, 1)
-#		self.serialOptions.attach(gtk.Label("Baud rate"), 0, 1, 1, 2)
-#		self.serialOptions.attach(self.baudSelector, 1, 2, 1, 2)
-#		self.serialOptions.attach(gtk.Label("Flow control"), 0, 1, 2, 3)
-#		self.serialOptions.attach(self.flowControlSelector, 1, 2, 2, 3)
-#		
-		container.add(self.serialOptions)
-		
-		self.connectButton = gtk.Button("Connect")
-		self.connectButton.connect("clicked", self.toggleConnect)
-		container.add(self.connectButton)
-		
-		stepSize = 1
-		
+		'''
+			Basic Controls Page
+		'''
+		basicControlsPage = gtk.VBox(False, 10)
+
+		stepSize = 1		
 		self.controls = gtk.VBox(False, 10)
 		
 		arrows = gtk.Table(5, 5, True)
@@ -169,15 +140,107 @@ class MyEffect(inkex.Effect):
 		
 		self.controls.add(sendButtons)
 
-		container.add(self.controls)
+		basicControlsPage.add(self.controls)
+
+		'''
+			Serial controls
+		'''
+		serialControlsPage = gtk.VBox(False, 10)
 		
-		self.window.add(container)
+		self.portSelector = gtk.combo_box_new_text()
+		for p in self.ports:
+			self.portSelector.append_text(p)
+		self.portSelector.set_active(0)
+		
+		bauds = ["110", "300", "600", "1200", "2400", "4800", "9600", "14400", "19200", "28800", "38400", "56000", "57600", "115200"]
+		self.baudSelector = gtk.combo_box_new_text()
+		for i, rate in enumerate(bauds):
+			self.baudSelector.append_text("%s" % rate)
+			if rate == self.options.serialBaudRate:
+				self.baudSelector.set_active(i)
+
+		self.flowControlSelector = gtk.combo_box_new_text()
+		self.flowControlSelector.append_text("None")
+		self.flowControlSelector.append_text("XON/XOFF")
+		self.flowControlSelector.append_text("RTS/CTS")
+		self.flowControlSelector.append_text("DSR/DTR + RTS/CTS")
+
+		self.serialOptions = gtk.Table(3, 2, False)
+		self.serialOptions.attach(gtk.Label("Serial port"), 0, 1, 0, 1)
+		self.serialOptions.attach(self.portSelector, 1, 2, 0, 1)
+		self.serialOptions.attach(gtk.Label("Baud rate"), 0, 1, 1, 2)
+		self.serialOptions.attach(self.baudSelector, 1, 2, 1, 2)
+		self.serialOptions.attach(gtk.Label("Flow control"), 0, 1, 2, 3)
+		self.serialOptions.attach(self.flowControlSelector, 1, 2, 2, 3)
+		
+		serialControlsPage.add(self.serialOptions)
+		
+		self.connectButton = gtk.Button("Connect")
+		self.connectButton.connect("clicked", self.toggleConnect)
+		serialControlsPage.add(self.connectButton)
+		
+		
+		'''
+			Plotter Setup
+		'''
+		setupPage = gtk.Table(8, 2, False)
+		
+		gtk.Adjustment(value=0, lower=0, upper=0, step_incr=0, page_incr=0, page_size=0)
+		
+		controls = [
+			{
+				"label": "Pen up angle",
+				"control": gtk.SpinButton(gtk.Adjustment(180, 0, 180, 1, 10, 0)),
+			},{
+				"label": "Pen down angle",
+				"control": gtk.SpinButton(gtk.Adjustment(0, 0, 180, 1, 10, 0)),
+			},{
+				"label":"Start delay",
+				"control": gtk.SpinButton(gtk.Adjustment(500, 0, 1000, 10, 100, 0)),
+			},{
+				"label": "Stop delay",
+				"control": gtk.SpinButton(gtk.Adjustment(500, 0, 1000, 10, 100, 0)),
+			},{
+				"label": "X-Y feedrate",
+				"control": gtk.SpinButton(gtk.Adjustment(500, 100, 5000, 10, 100, 0)),
+#			},{
+#				"label": "Z feedrate",
+#				"control": gtk.SpinButton(gtk.Adjustment(500, 0, 1000, 10, 100, 0)),
+#			},{
+#				"label": "Z print height",
+#				"control": gtk.SpinButton(gtk.Adjustment(0, 0, 110, 1, 10, 0)),
+#			},{
+#				"label": "Z finish height",
+#				"control": gtk.SpinButton(gtk.Adjustment(0, 0, 110, 1, 10, 0)),
+			}
+		]
+		
+		for i,c in enumerate(controls):
+			inkex.debug(c)
+			setupPage.attach(gtk.Label(c['label']), 0, 1, i, i+1)
+			setupPage.attach(c['control'], 1, 2, i, i+1)
+		
+		'''
+			Add tabs
+		'''
+		notebook = gtk.Notebook()
+
+		notebook.append_page(basicControlsPage, gtk.Label("Controls"))
+		notebook.append_page(serialControlsPage, gtk.Label("Port options"))
+		notebook.append_page(setupPage, gtk.Label("Setup"))
+		self.window.add(notebook)
+		
+		'''
+			Display
+		'''
 		
 		self.serialOptions.show_all()
 		self.connectButton.show()
-		container.show()
-		self.window.show()
+		self.window.show_all()
 		
+		'''
+			Auto-connect
+		'''
 		for i, p in enumerate(self.ports):
 			self.portSelector.set_active(i)
 			try:
@@ -363,11 +426,11 @@ def get_serial_ports():
 
 if __name__ == '__main__':   #pragma: no cover
 	ports = get_serial_ports()
-	if len(ports) == 0:
-		inkex.errormsg("No serial ports found :(")
-		inkex.errormsg("Please connect your device and try again")
-	else:
-		e = MyEffect()
-		e.affect()		
+#	if len(ports) == 0:
+#		inkex.errormsg("No serial ports found :(")
+#		inkex.errormsg("Please connect your device and try again")
+#	else:
+	e = MyEffect()
+	e.affect()		
 
 	
