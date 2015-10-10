@@ -8,7 +8,7 @@ class GCodeContext:
       self.start_delay = start_delay
       self.stop_delay = stop_delay
       self.pen_up_angle = pen_up_angle
-      self.pen_down_angle = pen_down_angle
+      self.pen_max_down_angle = pen_down_angle
       self.z_height = z_height
       self.finished_height = finished_height
       self.x_home = x_home
@@ -17,6 +17,8 @@ class GCodeContext:
       self.num_pages = num_pages
       self.continuous = continuous
       self.file = file
+      
+      self.pen_down_angle = pen_up_angle
       
       self.drawing = False
       self.last = None

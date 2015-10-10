@@ -1,10 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-#	cutting depth
-#	button blink
-#	auto-connect
-
 '''
 Copyright (c) 2015 MakeICT
 
@@ -88,6 +84,7 @@ class MyEffect(inkex.Effect):
 											
 	def getIntOption(self, option):
 		return int(self.getOption(option))
+		self.backgroundColors = {}
 											
 	def getBooleanOption(self, option):
 		return self.getOption(option) in ['True', 'true', '1', 'Yes', 'yes', 'T', 't', 'Y', 'y']
@@ -148,16 +145,19 @@ class MyEffect(inkex.Effect):
 		
 		self.controls.add(arrows)
 
-		homeButtons = gtk.HBox(True)
-		b = gtk.Button("Set Home")
-		b.connect("clicked", self.setHome, None)
-		homeButtons.add(b)
+		self.homeButtons = gtk.Frame()
+		box = gtk.HBox(True)
+		self.setHomeButton = gtk.Button("Set Home")
+		self.setHomeButton.connect("clicked", self.setHome, None)
+		box.add(self.setHomeButton)
 		
-		b = gtk.Button("Go Home")
-		b.connect("clicked", self.goHome, None)
-		homeButtons.add(b)
+		self.goHomeButton = gtk.Button("Go Home")
+		self.goHomeButton.connect("clicked", self.goHome, None)
+		box.add(self.goHomeButton)
 		
-		self.controls.add(homeButtons)
+		self.homeButtons.add(box)
+		
+		self.controls.add(self.homeButtons)
 		
 		sendButtons = gtk.HBox(True)
 #		b = gtk.Button("▶ Selection")
@@ -296,13 +296,37 @@ class MyEffect(inkex.Effect):
 		for i, p in enumerate(self.ports):
 			self.portSelector.set_active(i)
 			try:
-				self.connect()
+				self.connect(2.5)
+				self.connectButton.set_label("Disconnect")
+				self.controls.show_all()
 				break
-			except:
+			except Exception as exc:
+#				inkex.debug("Error %d %s" % (i, str(exc)))
 				pass
 		
 		gtk.main()
+
+	def highlight(self, widget, color="#a00"):
+		map = widget.get_colormap() 
+		color = map.alloc_color(color)
+
+		#copy the current style and replace the background
+		style = widget.get_style().copy()
 		
+		if not widget in self.backgroundColors:
+			self.backgroundColors[widget] = style.bg[gtk.STATE_NORMAL]
+
+		style.bg[gtk.STATE_NORMAL] = color
+
+		#set the button's style to the one you created
+		widget.set_style(style)
+		
+	def dehighlight(self, widget, color="#000"):
+		if widget in self.backgroundColors:
+			self.highlight(widget, self.backgroundColors[widget])
+		else:
+			self.highlight(widget, color)
+
 	def generateBuffer(self):
 		self.context = GCodeContext(
 			self.getFloatOption('xyFeedrate'),
@@ -327,9 +351,9 @@ class MyEffect(inkex.Effect):
 		if self.serial is None:
 			self.disconnect()
 			raise Exception("Not connected :(")
-			
+		
 		self.serial.write("%s\n" % message)
-		ok = self.serial.read(2)
+		ok = self.serial.read(2).decode("ascii")
 		if ok != "ok":
 			raise Exception("Invalid response: '%s'" % ok)
 		
@@ -346,7 +370,6 @@ class MyEffect(inkex.Effect):
 	def toggleConnect(self, widget, data=None):
 		if self.serial is None:
 			try:
-				self.saveOptions()
 				self.connect()
 				self.connectButton.set_label("Disconnect")
 				self.controls.show_all()
@@ -358,12 +381,14 @@ class MyEffect(inkex.Effect):
 			self.connectButton.set_label("Connect")
 			self.controls.hide()
 		
-	def connect(self):
+	def connect(self, timeout=5):
 		try:
+			self.saveOptions()
+			
 			self.serial = serial.Serial()
 			self.serial.port = self.getOption('serialPort')
 			self.serial.baudrate = self.getFloatOption('serialBaudRate')
-			self.serial.timeout = 10
+			self.serial.timeout = timeout
 
 			if self.getOption('flowControl') == 'XON/XOFF':
 				self.serial.xonxoff = True
@@ -373,13 +398,17 @@ class MyEffect(inkex.Effect):
 				self.serial.dsrdtr = True
 			
 			self.serial.open()
-			readyString = self.serial.read(26)
-			if readyString != "MakeICT Foam Cutter ready!":
-				raise Exception("Invalid ready string: '%s'" % readyString)
+			#time.sleep(5)
+			initString = self.serial.read(19).decode("ascii")
+			if initString != "MakeICT Foam Cutter":
+				s = "Invalid init string: '%s'" % initString
+				raise Exception(s)
+
+			self.serial.timeout = None
 
 			self.send("G21 (metric ftw)")
 			self.send("G90 (absolute mode)")
-			self.send("G92 X0.0 Y0.0")
+			self.send("G92 X%0.2f Y%0.2f" % (self.pos[0], self.pos[1]))
 				
 		except Exception as exc:
 			self.serial = None
@@ -418,7 +447,11 @@ class MyEffect(inkex.Effect):
 		
 	def updatePosition(self):
 		try:
-			self.send("G1 X%0.2F Y%0.2F F%0.2F" % (self.pos[0], self.pos[1], self.getFloatOption('xyFeedrate')))
+			if self.pos[0] != 0 or self.pos[1] != 0:
+				self.highlight(self.homeButtons)
+			else:
+				self.dehighlight(self.homeButtons)
+			self.send("G1 X%0.2F Y%0.2F F%0.2F" % (self.pos[0], self.pos[1], self.options.xy_feedrate))
 		except Exception as exc:
 			self.showError(exc)
 			
@@ -463,24 +496,15 @@ def get_serial_ports():
 	else:
 		raise EnvironmentError('Unsupported platform')
 
-	result = []
-	for port in ports:
-		try:
-			s = serial.Serial(port)
-			s.close()
-			result.append(port)
-		except (OSError, serial.SerialException):
-			pass
-			
-	return result
+	return ports
 
 if __name__ == '__main__':   #pragma: no cover
 	ports = get_serial_ports()
-#	if len(ports) == 0:
-#		inkex.errormsg("No serial ports found :(")
-#		inkex.errormsg("Please connect your device and try again")
-#	else:
-	e = MyEffect()
-	e.affect()		
+	if len(ports) == 0:
+		inkex.errormsg("No serial ports found :(")
+		inkex.errormsg("Please connect your device and try again")
+	else:
+		e = MyEffect(ports)
+		e.affect()		
 
 	

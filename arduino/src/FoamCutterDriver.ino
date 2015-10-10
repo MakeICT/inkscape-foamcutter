@@ -95,7 +95,8 @@ const double maxFeedrate = 6000.;
 
 void setup(){
 	Serial.begin(9600);
-
+	Serial.print("MakeICT Foam Cutter");
+	
 	clear_buffer();
 	
 	pinMode(SPINDLE_ENABLE, OUTPUT);
@@ -122,8 +123,6 @@ void setup(){
 	delay(2000);
 	xAxisStepper.enableStepper(false);
 #endif
-
-	Serial.print("MakeICT Foam Cutter ready!");
 }
 
 void loop(){ // input loop, looks for manual input and then checks to see if and serial commands are coming in
