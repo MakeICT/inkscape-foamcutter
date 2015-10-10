@@ -46,8 +46,8 @@
  */
 
 #define DEFAULT_PEN_UP_POSITION 180
-#define XAXIS_MIN_STEPCOUNT -467
-#define XAXIS_MAX_STEPCOUNT 467
+#define XAXIS_MIN_STEPCOUNT -32768
+#define XAXIS_MAX_STEPCOUNT 32768
 #define DEFAULT_ZOOM_FACTOR 1. // With a Zoom-Faktor of .65, I can print gcode for Makerbot Unicorn without changes. 
 															 // The zoom factor can be also manipulated by the propretiary code M402
 
@@ -57,14 +57,14 @@
 StepperModel xAxisStepper(
 	XAXIS_DIR_PIN, XAXIS_STEP_PIN,
 	XAXIS_ENABLE_PIN, XAXIS_ENDSTOP_PIN,
-	XAXIS_MIN_STEPCOUNT, XAXIS_MAX_STEPCOUNT,
-	100.0, 16
+	0, 0,
+	200, 16
 );
 StepperModel yAxisStepper(
 	YAXIS_DIR_PIN, YAXIS_STEP_PIN,
 	YAXIS_ENABLE_PIN, YAXIS_ENDSTOP_PIN,
 	0, 0,
-	100.0, 16
+	200, 16
 );
 
 SoftwareServo servo;
@@ -121,10 +121,9 @@ void setup(){
 	commitSteppers(maxFeedrate);
 	delay(2000);
 	xAxisStepper.enableStepper(false);
-	digitalWrite(SPINDLE_ENABLE, LOW);
 #endif
 
-	Serial.print("ready");
+	Serial.print("MakeICT Foam Cutter ready!");
 }
 
 void loop(){ // input loop, looks for manual input and then checks to see if and serial commands are coming in
@@ -152,13 +151,11 @@ void commitSteppers(double speedrate){
 	long deltaStepsX = xAxisStepper.delta;
 	if(deltaStepsX != 0L){
 		xAxisStepper.enableStepper(true);
-		digitalWrite(SPINDLE_ENABLE, HIGH);
 	}
 
 	long deltaStepsY = yAxisStepper.delta;
 	if(deltaStepsY != 0L){
 		yAxisStepper.enableStepper(true);
-		digitalWrite(SPINDLE_ENABLE, HIGH);
 	}
 	long masterSteps = (deltaStepsX>deltaStepsY)?deltaStepsX:deltaStepsY;
 
@@ -321,6 +318,15 @@ void process_commands(char command[], int command_length){ // deals with standar
 		double value;
 		int codenum = (int)strtod(&command[1], NULL);
 		switch(codenum){   
+			case 3: // Enable Spindle
+			case 4:
+				digitalWrite(SPINDLE_ENABLE, HIGH);
+				Serial.print("ok");
+			break;
+			case 5: // Disable Spindle
+				digitalWrite(SPINDLE_ENABLE, LOW);
+				Serial.print("ok");
+			break;
 			case 18: // Disable Drives
 				xAxisStepper.resetStepper();
 				yAxisStepper.resetStepper();
@@ -354,7 +360,6 @@ void process_commands(char command[], int command_length){ // deals with standar
 					commitSteppers(maxFeedrate);
 					delay(2000);
 					xAxisStepper.enableStepper(false);
-					digitalWrite(SPINDLE_ENABLE, LOW);
 				}
 				break;
 				
@@ -365,7 +370,6 @@ void process_commands(char command[], int command_length){ // deals with standar
 					commitSteppers(maxFeedrate);
 					delay(2000);
 					yAxisStepper.enableStepper(false);
-					digitalWrite(SPINDLE_ENABLE, LOW);
 				}
 				break;
 				

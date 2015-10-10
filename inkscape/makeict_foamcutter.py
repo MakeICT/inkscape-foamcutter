@@ -1,6 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+#	cutting depth
+#	button blink
+#	auto-connect
+
 '''
 Copyright (c) 2015 MakeICT
 
@@ -174,6 +178,14 @@ class MyEffect(inkex.Effect):
 		container.show()
 		self.window.show()
 		
+		for i, p in enumerate(self.ports):
+			self.portSelector.set_active(i)
+			try:
+				self.connect()
+				break
+			except:
+				pass
+		
 		gtk.main()
 		
 	def generateBuffer(self):
@@ -243,8 +255,8 @@ class MyEffect(inkex.Effect):
 				self.serial.dsrdtr = True
 			
 			self.serial.open()
-			readyString = self.serial.read(5)
-			if readyString != "ready":
+			readyString = self.serial.read(26)
+			if readyString != "MakeICT Foam Cutter ready!":
 				raise Exception("Invalid ready string: '%s'" % readyString)
 
 			self.send("G21 (metric ftw)")

@@ -7,6 +7,9 @@
   <dependency type="executable" location="extensions">inkex.py</dependency>
 
   <param name="tab" type="notebook">
+	<page name="home" _gui-text="Home">
+	  <param name="instructions" type="description">Click the 'Apply' button for connection parameters and hardware controls.</param>
+	</page>
 	<page name="serial_options" _gui-text="Serial Options">
       <param name="serialBaudRate" type="enum" _gui-text="Serial baud rate:" _gui-description="The Baud rate of your serial connection (Default: 9600)">
         <item value="110">110</item>
@@ -78,7 +81,6 @@ Note: Double-check the orientation of your axes when changing these values!</_pa
 More Info: http://github.com/martymcguire/inkscape-unicorn/</_param>
     </page>
   </param>
-  <param name="instructions" type="description">Click the 'Apply' button for connection parameters and hardware controls.</param>
 
   
   <effect needs-live-preview="false" needs-document="true">

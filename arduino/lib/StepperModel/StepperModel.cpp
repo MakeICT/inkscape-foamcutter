@@ -49,7 +49,8 @@ StepperModel::StepperModel(int inDirPin, int inStepPin, int inEnablePin, int inE
   currentStepcount=0;
   targetStepcount=0;
 
-  steps_per_mm = (int)((kStepsPerRevolution/(45.*M_PI))*kMicroStepping+0.5); // default value for a "normal" egg (45 mm diameter)
+  //steps_per_mm = (int)((kStepsPerRevolution/(45.*M_PI))*kMicroStepping+0.5); // default value for a "normal" egg (45 mm diameter)
+  steps_per_mm = kStepsPerRevolution / 52.0d;
   enableStepper(false);
 }
 
