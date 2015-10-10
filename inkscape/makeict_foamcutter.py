@@ -41,35 +41,65 @@ except ImportError, e:
 	exit()
 
 
-import pygtk, gtk
+import gtk
+import ConfigParser
 
 class MyEffect(inkex.Effect):
 	def __init__(self):
 		inkex.Effect.__init__(self, ports)
-		self.OptionParser.add_option('--serialPort',			action='store', type='string',	dest='serialPort',				default='COM1',		help='Serial port')
-		self.OptionParser.add_option('--serialBaudRate',		action='store', type='string',	dest='serialBaudRate',			default='9600',		help='Serial Baud rate')
-		self.OptionParser.add_option('--flowControl',			action='store', type='string',	dest='flowControl',				default='0',		help='Flow control')
-		self.OptionParser.add_option("--pen-up-angle",			action="store", type="float",	dest="pen_up_angle",			default="180.0",	help="Pen Up Angle")
-		self.OptionParser.add_option("--pen-down-angle",		action="store", type="float", 	dest="pen_down_angle",			default="0.0",		help="Pen Down Angle")
-		self.OptionParser.add_option("--start-delay",			action="store", type="float",	dest="start_delay", 			default="500.0",	help="Delay after pen down, before movement (ms)")
-		self.OptionParser.add_option("--stop-delay",			action="store", type="float",	dest="stop_delay", 				default="500.0",	help="Delay after pen up, before movement (ms)")
-		self.OptionParser.add_option("--xy-feedrate",			action="store", type="float",	dest="xy_feedrate", 			default="500.0",	help="XY axes feedrate in mm/min")
-		self.OptionParser.add_option("--z-feedrate",			action="store", type="float",	dest="z_feedrate", 				default="150.0",	help="Z axis feedrate in mm/min")
-		self.OptionParser.add_option("--z-height",				action="store", type="float",	dest="z_height", 				default="0.0",		help="Z axis print height in mm")
-		self.OptionParser.add_option("--finished-height",		action="store", type="float",	dest="finished_height", 		default="0.0",		help="Z axis height after printing in mm")
-		self.OptionParser.add_option("--register-pen",			action="store", type="string",	dest="register_pen", 			default="true",		help="Add pen registration check(s)")
-		self.OptionParser.add_option("--x-home",				action="store", type="float",	dest="x_home", 					default="0.0",		help="Starting X position")
-		self.OptionParser.add_option("--y-home",				action="store", type="float",	dest="y_home", 					default="0.0",		help="Starting Y position")
-		self.OptionParser.add_option("--num-copies",			action="store", type="int",		dest="num_copies", 				default="1")
-		self.OptionParser.add_option("--continuous",			action="store",	type="string",	dest="continuous", 				default="false",	help="Plot continuously until stopped.")
-		self.OptionParser.add_option("--pause-on-layer-change",	action="store", type="string",	dest="pause_on_layer_change",	default="false",	help="Pause on layer changes.")
-		self.OptionParser.add_option("--tab",					action="store", type="string",	dest="tab")
+
+		self.configFile = 'makeict_foamcutter/config.ini'
+		self.config = ConfigParser.ConfigParser({
+			'serialPort': '/dev/ttyUSB0',
+			'serialBaudRate': '9600',
+			'flowControl': 'None',
+			'penUpAngle': '180.0',
+			'penDownAngle': '0.0',	
+			'startDelay': '500.0',
+			'stopDelay': '500.0',
+			'xyFeedrate': '500.0',
+			'zFeedrate': '150.0',
+			'zHeight': '0.0',
+			'finishedHeight': '0.0',
+			'registerPen': 'False',
+			'xHome': '0.0',
+			'yHome': '0.0',
+			'numCopies': '1',
+			'continuous': 'False',
+			'pauseOnLayerChange': 'False',
+			
+		})
+		self.config.read(self.configFile)
+		self.preset = "Foam Cutter Defaults"
+		try:
+			self.config.add_section(self.preset)
+		except: pass
 		
 		self.serial = None
 		self.pos = [0, 0]
 		
 		self.ports = ports
+		
+	def getOption(self, option):
+		return self.config.get(self.preset, option)
 											
+	def getFloatOption(self, option):
+		return float(self.getOption(option))
+											
+	def getIntOption(self, option):
+		return int(self.getOption(option))
+											
+	def getBooleanOption(self, option):
+		return self.getOption(option) in ['True', 'true', '1', 'Yes', 'yes', 'T', 't', 'Y', 'y']
+											
+	def setOption(self, option, value):
+		return self.config.set(self.preset, option, str(value))
+		
+	def saveOptions(self):
+		f = open(self.configFile, 'w')
+		self.config.write(f)
+		f.close()
+
 	def effect(self):
 		self.window = gtk.Window(gtk.WINDOW_TOPLEVEL)
 		self.window.connect("destroy", self.destroy)
@@ -148,37 +178,52 @@ class MyEffect(inkex.Effect):
 		serialControlsPage = gtk.VBox(False, 10)
 		
 		self.portSelector = gtk.combo_box_new_text()
-		for p in self.ports:
+		for i,p in enumerate(self.ports):
 			self.portSelector.append_text(p)
-		self.portSelector.set_active(0)
-		
-		bauds = ["110", "300", "600", "1200", "2400", "4800", "9600", "14400", "19200", "28800", "38400", "56000", "57600", "115200"]
-		self.baudSelector = gtk.combo_box_new_text()
+			if p == self.getOption('serialPort'):
+				self.portSelector.set_active(i)
+
+		bauds = [110, 300, 600, 1200, 2400, 4800, 9600, 14400, 19200, 28800, 38400, 56000, 57600, 115200]
+		baudSelector = gtk.combo_box_new_text()
 		for i, rate in enumerate(bauds):
-			self.baudSelector.append_text("%s" % rate)
-			if rate == self.options.serialBaudRate:
-				self.baudSelector.set_active(i)
+			baudSelector.append_text("%s" % rate)
+			if rate == self.getFloatOption('serialBaudRate'):
+				baudSelector.set_active(i)
 
-		self.flowControlSelector = gtk.combo_box_new_text()
-		self.flowControlSelector.append_text("None")
-		self.flowControlSelector.append_text("XON/XOFF")
-		self.flowControlSelector.append_text("RTS/CTS")
-		self.flowControlSelector.append_text("DSR/DTR + RTS/CTS")
+		flowOptions = ["None", "XON/XOFF", "RTS/CTS", "DSR/DTR + RTS/CTS"]
+		flowControlSelector = gtk.combo_box_new_text()
+		for i, opt in enumerate(flowOptions):
+			flowControlSelector.append_text("%s" % opt)
+			if opt == self.getOption('flowControl'):
+				flowControlSelector.set_active(i)
 
-		self.serialOptions = gtk.Table(3, 2, False)
-		self.serialOptions.attach(gtk.Label("Serial port"), 0, 1, 0, 1)
-		self.serialOptions.attach(self.portSelector, 1, 2, 0, 1)
-		self.serialOptions.attach(gtk.Label("Baud rate"), 0, 1, 1, 2)
-		self.serialOptions.attach(self.baudSelector, 1, 2, 1, 2)
-		self.serialOptions.attach(gtk.Label("Flow control"), 0, 1, 2, 3)
-		self.serialOptions.attach(self.flowControlSelector, 1, 2, 2, 3)
-		
-		serialControlsPage.add(self.serialOptions)
+		controls = [
+			{
+				"label": "Serial Port",
+				"id": "serialPort",
+				"control": self.portSelector,
+			},{
+				"label": "Baud Rate",
+				"id": "serialBaudRate",
+				"control": baudSelector,
+			},{
+				"label":"Flow Control",
+				"id": "flowControl",
+				"control": flowControlSelector,
+			},
+		]
+
+		serialOptions = gtk.Table(3, 2, False)
+		for i,c in enumerate(controls):
+			serialOptions.attach(gtk.Label(c['label']), 0, 1, i, i+1)
+			serialOptions.attach(c['control'], 1, 2, i, i+1)
+			c['control'].connect('changed', self.optionChanged, c)
+
+		serialControlsPage.add(serialOptions)
 		
 		self.connectButton = gtk.Button("Connect")
 		self.connectButton.connect("clicked", self.toggleConnect)
 		serialControlsPage.add(self.connectButton)
-		
 		
 		'''
 			Plotter Setup
@@ -190,18 +235,23 @@ class MyEffect(inkex.Effect):
 		controls = [
 			{
 				"label": "Pen up angle",
+				"id": "penUpAngle",
 				"control": gtk.SpinButton(gtk.Adjustment(180, 0, 180, 1, 10, 0)),
 			},{
 				"label": "Pen down angle",
+				"id": "penDownAngle",
 				"control": gtk.SpinButton(gtk.Adjustment(0, 0, 180, 1, 10, 0)),
 			},{
 				"label":"Start delay",
+				"id": "startDelay",
 				"control": gtk.SpinButton(gtk.Adjustment(500, 0, 1000, 10, 100, 0)),
 			},{
 				"label": "Stop delay",
+				"id": "stopDelay",
 				"control": gtk.SpinButton(gtk.Adjustment(500, 0, 1000, 10, 100, 0)),
 			},{
 				"label": "X-Y feedrate",
+				"id": "xyFeedrate",
 				"control": gtk.SpinButton(gtk.Adjustment(500, 100, 5000, 10, 100, 0)),
 #			},{
 #				"label": "Z feedrate",
@@ -216,25 +266,27 @@ class MyEffect(inkex.Effect):
 		]
 		
 		for i,c in enumerate(controls):
-			inkex.debug(c)
 			setupPage.attach(gtk.Label(c['label']), 0, 1, i, i+1)
 			setupPage.attach(c['control'], 1, 2, i, i+1)
+			c['control'].set_value(self.getFloatOption(c['id']))
+			c['control'].connect('value-changed', self.optionChanged, c)
+			
 		
 		'''
 			Add tabs
 		'''
-		notebook = gtk.Notebook()
+		self.notebook = gtk.Notebook()
 
-		notebook.append_page(basicControlsPage, gtk.Label("Controls"))
-		notebook.append_page(serialControlsPage, gtk.Label("Port options"))
-		notebook.append_page(setupPage, gtk.Label("Setup"))
-		self.window.add(notebook)
+		self.notebook.append_page(basicControlsPage, gtk.Label("Controls"))
+		self.notebook.append_page(serialControlsPage, gtk.Label("Port options"))
+		self.notebook.append_page(setupPage, gtk.Label("Setup"))
+		self.window.add(self.notebook)
 		
 		'''
 			Display
 		'''
 		
-		self.serialOptions.show_all()
+		#self.serialOptions.show_all()
 		self.connectButton.show()
 		self.window.show_all()
 		
@@ -253,18 +305,18 @@ class MyEffect(inkex.Effect):
 		
 	def generateBuffer(self):
 		self.context = GCodeContext(
-			self.options.xy_feedrate,
-			self.options.z_feedrate, 
-			self.options.start_delay, self.options.stop_delay,
-			self.options.pen_up_angle, self.options.pen_down_angle,
-			self.options.z_height, self.options.finished_height,
-			self.options.x_home, self.options.y_home,
-			self.options.register_pen,
-			self.options.num_copies,
-			self.options.continuous,
+			self.getFloatOption('xyFeedrate'),
+			self.getFloatOption('zFeedrate'),
+			self.getFloatOption('startDelay'), self.getFloatOption('stopDelay'),
+			self.getFloatOption('penUpAngle'), self.getFloatOption('penDownAngle'),
+			self.getFloatOption('zHeight'), self.getFloatOption('finishedHeight'),
+			self.getFloatOption('xHome'), self.getFloatOption('yHome'),
+			self.getBooleanOption('registerPen'),
+			self.getIntOption('numCopies'),
+			self.getBooleanOption('continuous'),
 			self.svg_file
 		)
-		parser = SvgParser(self.document.getroot(), self.options.pause_on_layer_change)
+		parser = SvgParser(self.document.getroot(), self.getBooleanOption('pauseOnLayerChange'))
 		parser.parse()
 		for entity in parser.entities:
 			entity.get_gcode(self.context)
@@ -281,6 +333,13 @@ class MyEffect(inkex.Effect):
 		if ok != "ok":
 			raise Exception("Invalid response: '%s'" % ok)
 		
+	def optionChanged(self, widget, data=None):
+		if isinstance(data['control'], gtk.ComboBox):
+			self.setOption(data['id'], data['control'].get_active_text())
+		else:
+			self.setOption(data['id'], data['control'].get_value())
+			self.showError("%s = %s" % (data['id'], data['control'].get_value()))
+			
 	def destroy(self, widget, data=None):
 		gtk.main_quit()
 
@@ -291,6 +350,7 @@ class MyEffect(inkex.Effect):
 				self.connect()
 				self.connectButton.set_label("Disconnect")
 				self.controls.show_all()
+				self.notebook.set_current_page(0)
 			except Exception as exc:
 				self.showError(exc)
 		else:
@@ -298,23 +358,18 @@ class MyEffect(inkex.Effect):
 			self.connectButton.set_label("Connect")
 			self.controls.hide()
 		
-	def saveOptions(self):
-		self.options.serialPort = self.portSelector.get_active_text()
-#		self.options.serialBaudRate = self.baudSelector.get_active_text()
-#		self.options.flowControl = self.flowControlSelector.get_active_text()
-	
 	def connect(self):
 		try:
 			self.serial = serial.Serial()
-			self.serial.port = self.options.serialPort
-			self.serial.baudrate = self.options.serialBaudRate
+			self.serial.port = self.getOption('serialPort')
+			self.serial.baudrate = self.getFloatOption('serialBaudRate')
 			self.serial.timeout = 10
 
-			if self.options.flowControl == 'XON/XOFF':
+			if self.getOption('flowControl') == 'XON/XOFF':
 				self.serial.xonxoff = True
-			if self.options.flowControl == 'RTS/CTS' or self.options.flowControl == 'DSR/DTR + RTS/CTS':
+			if self.getOption('flowControl') == 'RTS/CTS' or self.getOption('flowControl') == 'DSR/DTR + RTS/CTS':
 				self.serial.rtscts = True
-			if self.options.flowControl == 'DSR/DTR + RTS/CTS':
+			if self.getOption('flowControl') == 'DSR/DTR + RTS/CTS':
 				self.serial.dsrdtr = True
 			
 			self.serial.open()
@@ -340,13 +395,9 @@ class MyEffect(inkex.Effect):
 			self.serial = None
 		
 	def showError(self, msg):
-		if isinstance(msg, OSError):
-			msg = str(msg)
-		elif isinstance(msg, Exception):
-			msg = msg.message
+		msg = str(msg)
 			
-		message = gtk.MessageDialog(type=gtk.MESSAGE_ERROR, buttons=gtk.BUTTONS_CLOSE, message_format="Error: %s")
-		message.set_markup(msg)
+		message = gtk.MessageDialog(type=gtk.MESSAGE_ERROR, buttons=gtk.BUTTONS_CLOSE, message_format="Error: %s" % msg)
 		message.run()
 		message.destroy()
 		
@@ -367,10 +418,9 @@ class MyEffect(inkex.Effect):
 		
 	def updatePosition(self):
 		try:
-			self.send("G1 X%0.2F Y%0.2F F%0.2F" % (self.pos[0], self.pos[1], self.options.xy_feedrate))
+			self.send("G1 X%0.2F Y%0.2F F%0.2F" % (self.pos[0], self.pos[1], self.getFloatOption('xyFeedrate')))
 		except Exception as exc:
 			self.showError(exc)
-
 			
 	def moveX(self, widget, data=None):
 		step = data
