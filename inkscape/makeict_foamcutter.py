@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 
 #	cutting depth
-#	button blink
 #	auto-connect
 
 '''
@@ -69,6 +68,8 @@ class MyEffect(inkex.Effect):
 		self.pos = [0, 0]
 		
 		self.ports = ports
+		
+		self.backgroundColors = {}
 											
 	def effect(self):
 		self.window = gtk.Window(gtk.WINDOW_TOPLEVEL)
@@ -147,16 +148,19 @@ class MyEffect(inkex.Effect):
 		
 		self.controls.add(arrows)
 
-		homeButtons = gtk.HBox(True)
-		b = gtk.Button("Set Home")
-		b.connect("clicked", self.setHome, None)
-		homeButtons.add(b)
+		self.homeButtons = gtk.Frame()
+		box = gtk.HBox(True)
+		self.setHomeButton = gtk.Button("Set Home")
+		self.setHomeButton.connect("clicked", self.setHome, None)
+		box.add(self.setHomeButton)
 		
-		b = gtk.Button("Go Home")
-		b.connect("clicked", self.goHome, None)
-		homeButtons.add(b)
+		self.goHomeButton = gtk.Button("Go Home")
+		self.goHomeButton.connect("clicked", self.goHome, None)
+		box.add(self.goHomeButton)
 		
-		self.controls.add(homeButtons)
+		self.homeButtons.add(box)
+		
+		self.controls.add(self.homeButtons)
 		
 		sendButtons = gtk.HBox(True)
 #		b = gtk.Button("▶ Selection")
@@ -176,7 +180,7 @@ class MyEffect(inkex.Effect):
 		self.serialOptions.show_all()
 		self.connectButton.show()
 		container.show()
-		self.window.show()
+		self.window.show_all()
 		
 		for i, p in enumerate(self.ports):
 			self.portSelector.set_active(i)
@@ -187,6 +191,28 @@ class MyEffect(inkex.Effect):
 				pass
 		
 		gtk.main()
+
+	def highlight(self, widget, color="#a00"):
+		map = widget.get_colormap() 
+		color = map.alloc_color(color)
+
+		#copy the current style and replace the background
+		style = widget.get_style().copy()
+		
+		if not widget in self.backgroundColors:
+			self.backgroundColors[widget] = style.bg[gtk.STATE_NORMAL]
+
+		style.bg[gtk.STATE_NORMAL] = color
+
+		#set the button's style to the one you created
+		widget.set_style(style)
+		
+	def dehighlight(self, widget, color="#000000"):
+		if widget in self.backgroundColors:
+			self.highlight(widget, self.backgroundColors[widget])
+		else:
+			self.highlight(widget, color)
+
 		
 	def generateBuffer(self):
 		self.context = GCodeContext(
@@ -304,6 +330,10 @@ class MyEffect(inkex.Effect):
 		
 	def updatePosition(self):
 		try:
+			if self.pos[0] != 0 or self.pos[1] != 0:
+				self.highlight(self.homeButtons)
+			else:
+				self.dehighlight(self.homeButtons)
 			self.send("G1 X%0.2F Y%0.2F F%0.2F" % (self.pos[0], self.pos[1], self.options.xy_feedrate))
 		except Exception as exc:
 			self.showError(exc)
