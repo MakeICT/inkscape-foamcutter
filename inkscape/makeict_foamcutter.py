@@ -41,8 +41,8 @@ import gtk
 import ConfigParser
 
 class MyEffect(inkex.Effect):
-	def __init__(self):
-		inkex.Effect.__init__(self, ports)
+	def __init__(self, ports):
+		inkex.Effect.__init__(self)
 
 		self.configFile = 'makeict_foamcutter/config.ini'
 		self.config = ConfigParser.ConfigParser({
@@ -75,6 +75,7 @@ class MyEffect(inkex.Effect):
 		self.pos = [0, 0]
 		
 		self.ports = ports
+		self.backgroundColors = {}
 		
 	def getOption(self, option):
 		return self.config.get(self.preset, option)
@@ -278,17 +279,9 @@ class MyEffect(inkex.Effect):
 		self.notebook = gtk.Notebook()
 
 		self.notebook.append_page(basicControlsPage, gtk.Label("Controls"))
-		self.notebook.append_page(serialControlsPage, gtk.Label("Port options"))
 		self.notebook.append_page(setupPage, gtk.Label("Setup"))
+		self.notebook.append_page(serialControlsPage, gtk.Label("Port options"))
 		self.window.add(self.notebook)
-		
-		'''
-			Display
-		'''
-		
-		#self.serialOptions.show_all()
-		self.connectButton.show()
-		self.window.show_all()
 		
 		'''
 			Auto-connect
@@ -304,6 +297,14 @@ class MyEffect(inkex.Effect):
 #				inkex.debug("Error %d %s" % (i, str(exc)))
 				pass
 		
+		'''
+			Display
+		'''
+		self.window.show_all()
+		if not self.serial:
+			self.controls.hide()
+			self.notebook.set_current_page(2)
+			
 		gtk.main()
 
 	def highlight(self, widget, color="#a00"):
@@ -381,7 +382,7 @@ class MyEffect(inkex.Effect):
 			self.connectButton.set_label("Connect")
 			self.controls.hide()
 		
-	def connect(self, timeout=5):
+	def connect(self, timeout=10):
 		try:
 			self.saveOptions()
 			
@@ -398,7 +399,6 @@ class MyEffect(inkex.Effect):
 				self.serial.dsrdtr = True
 			
 			self.serial.open()
-			#time.sleep(5)
 			initString = self.serial.read(19).decode("ascii")
 			if initString != "MakeICT Foam Cutter":
 				s = "Invalid init string: '%s'" % initString
@@ -451,7 +451,7 @@ class MyEffect(inkex.Effect):
 				self.highlight(self.homeButtons)
 			else:
 				self.dehighlight(self.homeButtons)
-			self.send("G1 X%0.2F Y%0.2F F%0.2F" % (self.pos[0], self.pos[1], self.options.xy_feedrate))
+			self.send("G1 X%0.2F Y%0.2F F%0.2F" % (self.pos[0], self.pos[1], self.getFloatOption('xyFeedrate')))
 		except Exception as exc:
 			self.showError(exc)
 			
@@ -465,10 +465,6 @@ class MyEffect(inkex.Effect):
 		self.pos[1] += step
 		self.updatePosition()
 
-#	def sendSelection(self, widget, data=None):
-#		self.showError("Not yet implemented")
-#		pass
-		
 	def sendAll(self, widget, data=None):
 		try:
 			data = self.generateBuffer()
