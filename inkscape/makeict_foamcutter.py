@@ -353,6 +353,7 @@ class MyEffect(inkex.Effect):
 			self.disconnect()
 			raise Exception("Not connected :(")
 		
+		inkex.debug(message)
 		self.serial.write("%s\n" % message)
 		ok = self.serial.read(2).decode("ascii")
 		if ok != "ok":
@@ -363,7 +364,6 @@ class MyEffect(inkex.Effect):
 			self.setOption(data['id'], data['control'].get_active_text())
 		else:
 			self.setOption(data['id'], data['control'].get_value())
-			self.showError("%s = %s" % (data['id'], data['control'].get_value()))
 			
 	def destroy(self, widget, data=None):
 		gtk.main_quit()
@@ -470,7 +470,6 @@ class MyEffect(inkex.Effect):
 			data = self.generateBuffer()
 			for line in data:
 				if line != "" and line[0] != "(":
-					inkex.debug("SEND: %s" % line)
 					self.send(line)
 		except Exception as exc:
 			self.showError(exc)
