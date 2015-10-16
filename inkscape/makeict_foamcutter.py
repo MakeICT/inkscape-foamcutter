@@ -108,6 +108,7 @@ class MyEffect(inkex.Effect):
 		else:
 			self.setOption(data['id'], data['control'].get_value())
 			
+		self.saveOptions()
 	'''
 		Build and display GUI
 	'''
@@ -118,6 +119,7 @@ class MyEffect(inkex.Effect):
 		self.autoConnectDialog = gtk.Window(gtk.WINDOW_TOPLEVEL)
 		self.connectLabel = gtk.Label("Trying to connect to device...")
 		self.connectLabel.set_padding(50, 50)
+		self.connectLabel.set_justify(gtk.JUSTIFY_CENTER)
 		self.autoConnectDialog.add(self.connectLabel)
 		self.autoConnectDialog.set_position(gtk.WIN_POS_CENTER)
 		self.autoConnectDialog.show_all()
@@ -125,7 +127,7 @@ class MyEffect(inkex.Effect):
 		gtk.main()
 		
 	def _updateConnectLabel(self):
-		self.connectLabel.set_text("Connecting to %s @ %s..." % (self.getOption('serialPort'), self.getOption('serialBaudRate')))
+		self.connectLabel.set_markup("<b>Attempting to connect...</b>\n\n%s\n%s bps" % (self.getOption('serialPort'), self.getOption('serialBaudRate')))
 
 	'''
 		Auto-connect
@@ -138,15 +140,15 @@ class MyEffect(inkex.Effect):
 				self.connect(2.5)
 				self.connectButton.set_label("Disconnect")
 				self.controls.show_all()
-				self.autoConnectDialog.hide()
 				break
 			except Exception as exc:
-#				inkex.debug("Error %d %s" % (i, str(exc)))
 				pass
 
-		if not self.serial:
-			self.controls.hide()
-			self.notebook.set_current_page(2)
+		self.autoConnectDialog.hide()
+		if self.serial is None or self.serial == None:
+			gobject.idle_add(self.controls.hide)
+			gobject.idle_add(self.notebook.set_current_page, 2)
+			gobject.idle_add(self.showError, "Auto-connect failed. Is the device connected and enabled?")
 		
 		self.window.set_position(gtk.WIN_POS_CENTER)
 		self.window.show_all()
@@ -220,22 +222,24 @@ class MyEffect(inkex.Effect):
 		
 		self.homeButtons.add(box)
 		
-		self.controls.add(self.homeButtons)
+		#self.controls.add(self.homeButtons)
+		self.controls.pack_start(self.homeButtons, False, False)
 		
 		sendButtons = gtk.HBox(True)
 #		b = gtk.Button("▶ Selection")
 #		b.connect("clicked", self.sendSelection, None)
 #		sendButtons.add(b)
 		
-		b = gtk.Button("▶ Send document")
+		b = gtk.Button("▶ Send drawing")
 		b.connect("clicked", self.sendAll, None)
 		sendButtons.add(b)
 		
-		self.controls.add(sendButtons)
+		self.controls.pack_start(sendButtons, False, False)
 		
 		self.progressBar = gtk.ProgressBar()
 		self.progressBar.set_text(" ")
-		self.controls.add(self.progressBar)
+#		self.controls.add(self.progressBar)
+		self.controls.pack_start(self.progressBar, False, False)
 
 		basicControlsPage.add(self.controls)
 		
@@ -289,11 +293,12 @@ class MyEffect(inkex.Effect):
 			serialOptions.attach(c['control'], 1, 2, i, i+1)
 			c['control'].connect('changed', self.optionChanged, c)
 
-		serialControlsPage.add(serialOptions)
+#		serialControlsPage.add(serialOptions)
+		serialControlsPage.pack_start(serialOptions, False, False)
 		
 		self.connectButton = gtk.Button("Connect")
 		self.connectButton.connect("clicked", self.toggleConnect)
-		serialControlsPage.add(self.connectButton)
+		serialControlsPage.pack_start(self.connectButton, False, False)
 		
 		return serialControlsPage
 		
@@ -350,18 +355,40 @@ class MyEffect(inkex.Effect):
 		GCode Log
 	'''
 	def _buildGCodeLogPage(self):
-		gcodeLogPage = gtk.Table(8, 2, False)
+		gcodeLogPage = gtk.VBox(False, 10)
 		
-			
+		
+		buttons = gtk.Table(1, 2, True)
+
+		button = gtk.Button("Clear")
+		button.connect("clicked", self.clearGCodeLog, None)
+		buttons.attach(button, 0, 1, 0, 1)
+				
+		button = gtk.Button("Insert drawing")
+		button.connect("clicked", self.addDocumentToGCodeLog, None)
+		buttons.attach(button, 1, 2, 0, 1)
+				
+		gcodeLogPage.pack_start(buttons, False, False)
+		
+		self.gcodeLog = gtk.TextView()
+		scroll = gtk.ScrolledWindow()
+		scroll.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_AUTOMATIC)
+		scroll.add(self.gcodeLog)
+		gcodeLogPage.add(scroll)
+
+		b = gtk.Button("▶ Send GCode")
+		b.connect("clicked", self.sendGCode, None)
+		gcodeLogPage.pack_start(b, False, False)
+		
 		return gcodeLogPage
 		
 	'''
 		About Page
 	'''
 	def _buildAboutPage(self):
-		text = 'Software by:\n'
-		text = text + '• Dominic Canare &lt;<a href="mailto:dom@makeict.org">dom@makeict.org</a>&gt;\n'
-		text = text + '• Tom McGuire &lt;<a href="atomicwire@gmail.com">atomicwire@gmail.com</a>&gt;\n'
+		text = 'Software by:\n\n'
+		text = text + '  • Dominic Canare &lt;<a href="mailto:dom@makeict.org">dom@makeict.org</a>&gt;\n'
+		text = text + '  • Tom McGuire &lt;<a href="atomicwire@gmail.com">atomicwire@gmail.com</a>&gt;\n'
 		text = text + '\n<a href="http://github.com/makeict/inkscape-foamcutter">github.com/makeict/inkscape-foamcutter</a>\n'
 
 		label = gtk.Label()
@@ -370,6 +397,13 @@ class MyEffect(inkex.Effect):
 
 		return label
 
+	def clearGCodeLog(self, widget=None, data=None):
+		self.gcodeLog.get_buffer().set_text("")
+		
+	def addDocumentToGCodeLog(self, widget=None, data=None):
+		code = "\n".join(self.generateBuffer())
+		self.gcodeLog.get_buffer().insert_at_cursor(code)
+		
 	def highlight(self, widget, color="#a00"):
 		map = widget.get_colormap() 
 		color = map.alloc_color(color)
@@ -416,7 +450,6 @@ class MyEffect(inkex.Effect):
 			self.disconnect()
 			raise Exception("Not connected :(")
 		
-		inkex.debug(message)
 		self.serial.write("%s\n" % message)
 		ok = self.serial.read(2).decode("ascii")
 		if ok != "ok":
@@ -441,8 +474,6 @@ class MyEffect(inkex.Effect):
 		
 	def connect(self, timeout=10):
 		try:
-			self.saveOptions()
-			
 			self.serial = serial.Serial()
 			self.serial.port = self.getOption('serialPort')
 			self.serial.baudrate = self.getFloatOption('serialBaudRate')
@@ -522,15 +553,25 @@ class MyEffect(inkex.Effect):
 		self.pos[1] += step
 		self.updatePosition()
 
-	def sendAll(self, widget, data=None):
+	def sendAll(self, widget=None, data=None):
 		self.disableControls()
 		self.progressBar.set_fraction(0.0)
-		t = threading.Thread(target=self._sendAll)
+		data = self.generateBuffer()
+		t = threading.Thread(target=self._sendLines, args=[data])
+		t.start()
+		
+	def sendGCode(self, widget=None, data=None):
+		self.disableControls()
+		self.progressBar.set_fraction(0.0)
+		self.notebook.set_current_page(0)
+		
+		b = self.gcodeLog.get_buffer()
+		data = b.get_text(*b.get_bounds()).split("\n")
+		t = threading.Thread(target=self._sendLines, args=[data])
 		t.start()
 
-	def _sendAll(self):
+	def _sendLines(self, data):
 		try:
-			data = self.generateBuffer()
 			for count,line in enumerate(data):
 				gobject.idle_add(self._updateProgressBar, float(count)/len(data))
 				
@@ -538,9 +579,9 @@ class MyEffect(inkex.Effect):
 					self.send(line)
 			gobject.idle_add(self._updateProgressBar, 1.0)
 		except Exception as exc:
-			self.showError(exc)
+			gobject.idle_add(self.showError, exc)
 		finally:
-			gobject.idle_add(self.enableControls)					
+			gobject.idle_add(self.enableControls)
 			self.highlight(self.homeButtons)
 			self.dehighlight(self.homeButtons)
 

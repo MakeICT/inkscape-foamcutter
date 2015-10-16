@@ -28,21 +28,20 @@ class GCodeContext:
 #        "( %s )" % " ".join(sys.argv),
         "G21 (metric ftw)",
         "G90 (absolute mode)",
-        "M3 (enable spindle)",
+        "M3 (enable spindle)"
 #        "G92 X%.2f Y%.2f Z%.2f (you are here)" % (self.x_home, self.y_home, self.z_height),
       ]
 
       self.postscript = [
-        "",
-#				"(end of print job)",
-				"M300 S%0.2F (pen up)" % self.pen_up_angle,
-				"G4 P%d (wait %dms)" % (self.stop_delay, self.stop_delay),
+		"(end of print job)",
+		"M300 S%0.2F (pen up)" % self.pen_up_angle,
+		"G4 P%d (wait %dms)" % (self.stop_delay, self.stop_delay),
 #				"M300 S255 (turn off servo)",
-				"M5 (disable spindle)",
-				"G1 X0 Y0 F%0.2F" % self.xy_feedrate,
-				"G1 Z%0.2F F%0.2F (go up to finished level)" % (self.finished_height, self.z_feedrate),
-				"G1 X%0.2F Y%0.2F F%0.2F (go home)" % (self.x_home, self.y_home, self.xy_feedrate),
-				"M18 (drives off)",
+		"M5 (disable spindle)",
+		"G1 X0 Y0 F%0.2F" % self.xy_feedrate,
+		"G1 Z%0.2F F%0.2F (go up to finished level)" % (self.finished_height, self.z_feedrate),
+		"G1 X%0.2F Y%0.2F F%0.2F (go home)" % (self.x_home, self.y_home, self.xy_feedrate),
+		"M18 (drives off)",
       ]
 
       self.registration = [
