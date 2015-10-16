@@ -121,9 +121,7 @@ class MyEffect(inkex.Effect):
 		self.autoConnectDialog.add(self.connectLabel)
 		self.autoConnectDialog.set_position(gtk.WIN_POS_CENTER)
 		self.autoConnectDialog.show_all()
-		t = threading.Thread(target=self.autoConnect)
-		t.start()
-		#self.autoConnect()
+		threading.Thread(target=self.autoConnect).start()
 		gtk.main()
 		
 	def _updateConnectLabel(self):
@@ -162,6 +160,8 @@ class MyEffect(inkex.Effect):
 		self.notebook.append_page(self._buildControlsPage(), gtk.Label("Controls"))
 		self.notebook.append_page(self._buildPlotterSetupPage(), gtk.Label("Setup"))
 		self.notebook.append_page(self._buildSerialControlsPage(), gtk.Label("Port options"))
+		self.notebook.append_page(self._buildGCodeLogPage(), gtk.Label("GCode Tools"))
+		self.notebook.append_page(self._buildAboutPage(), gtk.Label("About"))
 		self.window.add(self.notebook)
 
 	'''
@@ -345,6 +345,30 @@ class MyEffect(inkex.Effect):
 			c['control'].connect('value-changed', self.optionChanged, c)
 			
 		return setupPage
+
+	'''
+		GCode Log
+	'''
+	def _buildGCodeLogPage(self):
+		gcodeLogPage = gtk.Table(8, 2, False)
+		
+			
+		return gcodeLogPage
+		
+	'''
+		About Page
+	'''
+	def _buildAboutPage(self):
+		text = 'Software by:\n'
+		text = text + '• Dominic Canare &lt;<a href="mailto:dom@makeict.org">dom@makeict.org</a>&gt;\n'
+		text = text + '• Tom McGuire &lt;<a href="atomicwire@gmail.com">atomicwire@gmail.com</a>&gt;\n'
+		text = text + '\n<a href="http://github.com/makeict/inkscape-foamcutter">github.com/makeict/inkscape-foamcutter</a>\n'
+
+		label = gtk.Label()
+		label.set_markup(text)
+		label.set_line_wrap(True)
+
+		return label
 
 	def highlight(self, widget, color="#a00"):
 		map = widget.get_colormap() 
