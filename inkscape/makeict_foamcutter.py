@@ -21,8 +21,13 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 import sys,os
 import time
 import inkex
-from math import *
 import getopt
+import gtk
+import ConfigParser
+import gobject
+import threading
+
+from math import *
 from makeict_foamcutter.context import GCodeContext
 from makeict_foamcutter.svg_parser import SvgParser
 
@@ -35,10 +40,6 @@ except ImportError, e:
 		+ "\n3. Restart Inkscape."
 	))
 	exit()
-
-
-import gtk
-import ConfigParser
 
 class MyEffect(inkex.Effect):
 	def __init__(self, ports):
@@ -77,6 +78,9 @@ class MyEffect(inkex.Effect):
 		self.ports = ports
 		self.backgroundColors = {}
 		
+	'''
+		Dealing with options
+	'''
 	def getOption(self, option):
 		return self.config.get(self.preset, option)
 											
@@ -97,8 +101,19 @@ class MyEffect(inkex.Effect):
 		f = open(self.configFile, 'w')
 		self.config.write(f)
 		f.close()
-
+		
+	def optionChanged(self, widget, data=None):
+		if isinstance(data['control'], gtk.ComboBox):
+			self.setOption(data['id'], data['control'].get_active_text())
+		else:
+			self.setOption(data['id'], data['control'].get_value())
+			
+	'''
+		Build and display GUI
+	'''
 	def effect(self):
+		gobject.threads_init() 
+
 		self.window = gtk.Window(gtk.WINDOW_TOPLEVEL)
 		self.window.connect("destroy", self.destroy)
 		self.window.set_border_width(10)
@@ -170,6 +185,10 @@ class MyEffect(inkex.Effect):
 		sendButtons.add(b)
 		
 		self.controls.add(sendButtons)
+		
+		self.progressBar = gtk.ProgressBar()
+		self.progressBar.set_text(" ")
+		self.controls.add(self.progressBar)
 
 		basicControlsPage.add(self.controls)
 
@@ -300,6 +319,7 @@ class MyEffect(inkex.Effect):
 		'''
 			Display
 		'''
+		self.window.set_position(gtk.WIN_POS_CENTER)
 		self.window.show_all()
 		if not self.serial:
 			self.controls.hide()
@@ -359,12 +379,6 @@ class MyEffect(inkex.Effect):
 		if ok != "ok":
 			raise Exception("Invalid response: '%s'" % ok)
 		
-	def optionChanged(self, widget, data=None):
-		if isinstance(data['control'], gtk.ComboBox):
-			self.setOption(data['id'], data['control'].get_active_text())
-		else:
-			self.setOption(data['id'], data['control'].get_value())
-			
 	def destroy(self, widget, data=None):
 		gtk.main_quit()
 
@@ -466,13 +480,35 @@ class MyEffect(inkex.Effect):
 		self.updatePosition()
 
 	def sendAll(self, widget, data=None):
+		self.disableControls()
+		self.progressBar.set_fraction(0.0)
+		t = threading.Thread(target=self._sendAll)
+		t.start()
+
+	def _sendAll(self):
 		try:
 			data = self.generateBuffer()
-			for line in data:
+			for count,line in enumerate(data):
+				gobject.idle_add(self._updateProgressBar, float(count)/len(data))
+				
 				if line != "" and line[0] != "(":
 					self.send(line)
+			gobject.idle_add(self._updateProgressBar, 1.0)
 		except Exception as exc:
 			self.showError(exc)
+		finally:
+			gobject.idle_add(self.enableControls)
+
+			
+	def _updateProgressBar(self, fraction):
+		self.progressBar.set_text("%d%%" % int(fraction*100))
+		self.progressBar.set_fraction(fraction)
+		
+	def disableControls(self):
+		self.controls.set_sensitive(False)
+		
+	def enableControls(self):
+		self.controls.set_sensitive(True)
 		
 def get_serial_ports():
 	import glob
