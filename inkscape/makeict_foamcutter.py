@@ -113,14 +113,61 @@ class MyEffect(inkex.Effect):
 	'''
 	def effect(self):
 		gobject.threads_init() 
+		self.buildMainGUI()
+		
+		self.autoConnectDialog = gtk.Window(gtk.WINDOW_TOPLEVEL)
+		self.connectLabel = gtk.Label("Trying to connect to device...")
+		self.connectLabel.set_padding(50, 50)
+		self.autoConnectDialog.add(self.connectLabel)
+		self.autoConnectDialog.set_position(gtk.WIN_POS_CENTER)
+		self.autoConnectDialog.show_all()
+		t = threading.Thread(target=self.autoConnect)
+		t.start()
+		#self.autoConnect()
+		gtk.main()
+		
+	def _updateConnectLabel(self):
+		self.connectLabel.set_text("Connecting to %s @ %s..." % (self.getOption('serialPort'), self.getOption('serialBaudRate')))
 
+	'''
+		Auto-connect
+	'''
+	def autoConnect(self):
+		for i, p in enumerate(self.ports):
+			self.portSelector.set_active(i)
+			gobject.idle_add(self._updateConnectLabel)
+			try:
+				self.connect(2.5)
+				self.connectButton.set_label("Disconnect")
+				self.controls.show_all()
+				self.autoConnectDialog.hide()
+				break
+			except Exception as exc:
+#				inkex.debug("Error %d %s" % (i, str(exc)))
+				pass
+
+		if not self.serial:
+			self.controls.hide()
+			self.notebook.set_current_page(2)
+		
+		self.window.set_position(gtk.WIN_POS_CENTER)
+		self.window.show_all()
+
+	def buildMainGUI(self):
 		self.window = gtk.Window(gtk.WINDOW_TOPLEVEL)
 		self.window.connect("destroy", self.destroy)
 		self.window.set_border_width(10)
+		
+		self.notebook = gtk.Notebook()
+		self.notebook.append_page(self._buildControlsPage(), gtk.Label("Controls"))
+		self.notebook.append_page(self._buildPlotterSetupPage(), gtk.Label("Setup"))
+		self.notebook.append_page(self._buildSerialControlsPage(), gtk.Label("Port options"))
+		self.window.add(self.notebook)
 
-		'''
-			Basic Controls Page
-		'''
+	'''
+		Basic Controls Page
+	'''
+	def _buildControlsPage(self):		
 		basicControlsPage = gtk.VBox(False, 10)
 
 		stepSize = 1		
@@ -191,10 +238,13 @@ class MyEffect(inkex.Effect):
 		self.controls.add(self.progressBar)
 
 		basicControlsPage.add(self.controls)
+		
+		return basicControlsPage
 
-		'''
-			Serial controls
-		'''
+	'''
+		Serial controls
+	'''
+	def _buildSerialControlsPage(self):
 		serialControlsPage = gtk.VBox(False, 10)
 		
 		self.portSelector = gtk.combo_box_new_text()
@@ -245,9 +295,12 @@ class MyEffect(inkex.Effect):
 		self.connectButton.connect("clicked", self.toggleConnect)
 		serialControlsPage.add(self.connectButton)
 		
-		'''
-			Plotter Setup
-		'''
+		return serialControlsPage
+		
+	'''
+		Plotter Setup
+	'''
+	def _buildPlotterSetupPage(self):
 		setupPage = gtk.Table(8, 2, False)
 		
 		gtk.Adjustment(value=0, lower=0, upper=0, step_incr=0, page_incr=0, page_size=0)
@@ -291,41 +344,7 @@ class MyEffect(inkex.Effect):
 			c['control'].set_value(self.getFloatOption(c['id']))
 			c['control'].connect('value-changed', self.optionChanged, c)
 			
-		
-		'''
-			Add tabs
-		'''
-		self.notebook = gtk.Notebook()
-
-		self.notebook.append_page(basicControlsPage, gtk.Label("Controls"))
-		self.notebook.append_page(setupPage, gtk.Label("Setup"))
-		self.notebook.append_page(serialControlsPage, gtk.Label("Port options"))
-		self.window.add(self.notebook)
-		
-		'''
-			Auto-connect
-		'''
-		for i, p in enumerate(self.ports):
-			self.portSelector.set_active(i)
-			try:
-				self.connect(2.5)
-				self.connectButton.set_label("Disconnect")
-				self.controls.show_all()
-				break
-			except Exception as exc:
-#				inkex.debug("Error %d %s" % (i, str(exc)))
-				pass
-		
-		'''
-			Display
-		'''
-		self.window.set_position(gtk.WIN_POS_CENTER)
-		self.window.show_all()
-		if not self.serial:
-			self.controls.hide()
-			self.notebook.set_current_page(2)
-			
-		gtk.main()
+		return setupPage
 
 	def highlight(self, widget, color="#a00"):
 		map = widget.get_colormap() 
@@ -444,7 +463,7 @@ class MyEffect(inkex.Effect):
 		message.run()
 		message.destroy()
 		
-	def setHome(self, widget, data=None):
+	def setHome(self, widget=None, data=None):
 		try:
 			self.pos = [0, 0]
 			self.send("G92 X0.0 Y0.0")
@@ -452,7 +471,7 @@ class MyEffect(inkex.Effect):
 		except Exception as exc:
 			self.showError(exc)
 			
-	def goHome(self, widget, data=None):
+	def goHome(self, widget=None, data=None):
 		try:
 			self.pos = [0, 0]
 			self.updatePosition()
@@ -497,9 +516,10 @@ class MyEffect(inkex.Effect):
 		except Exception as exc:
 			self.showError(exc)
 		finally:
-			gobject.idle_add(self.enableControls)
+			gobject.idle_add(self.enableControls)					
+			self.highlight(self.homeButtons)
+			self.dehighlight(self.homeButtons)
 
-			
 	def _updateProgressBar(self, fraction):
 		self.progressBar.set_text("%d%%" % int(fraction*100))
 		self.progressBar.set_fraction(fraction)
