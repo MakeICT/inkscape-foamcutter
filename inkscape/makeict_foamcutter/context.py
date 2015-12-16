@@ -28,7 +28,7 @@ class GCodeContext:
 #        "( %s )" % " ".join(sys.argv),
         "G21 (metric ftw)",
         "G90 (absolute mode)",
-        "M3 (enable spindle)"
+#        "M3 (enable spindle)"
 #        "G92 X%.2f Y%.2f Z%.2f (you are here)" % (self.x_home, self.y_home, self.z_height),
       ]
 
@@ -115,12 +115,14 @@ class GCodeContext:
       return gcodeBuffer
 
     def start(self):
+      self.codes.append("M3 (enable spindle)")
       self.codes.append("M300 S%0.2F (pen down)" % self.pen_down_angle)
       self.codes.append("G4 P%d (wait %dms)" % (self.start_delay, self.start_delay))
       self.drawing = True
 
     def stop(self):
       self.codes.append("M300 S%0.2F (pen up)" % self.pen_up_angle)
+      self.codes.append("M5 (enable spindle)")
       self.codes.append("G4 P%d (wait %dms)" % (self.stop_delay, self.stop_delay))
       self.drawing = False
 
