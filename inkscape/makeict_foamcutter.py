@@ -267,7 +267,6 @@ class MyEffect(inkex.Effect):
 		self.pauseAndStopButtons.add(self.stopButton)
 		basicControlsPage.add(self.pauseAndStopButtons)
 
-		#self.stopButton.modify_bg(gtk.STATE_NORMAL, gtk.gdk.color_parse('#f00'))
 		self.pauseButton.modify_bg(gtk.STATE_NORMAL, gtk.gdk.color_parse('#440'))
 		self.pauseButton.modify_bg(gtk.STATE_PRELIGHT, gtk.gdk.color_parse('#440'))
 		
@@ -510,6 +509,7 @@ class MyEffect(inkex.Effect):
 			raise Exception("Invalid response: '%s'" % ok)
 		
 	def destroy(self, widget, data=None):
+		self.stopped = True
 		gtk.main_quit()
 
 	def toggleConnect(self, widget, data=None):
