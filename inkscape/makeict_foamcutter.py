@@ -81,6 +81,8 @@ class MyEffect(inkex.Effect):
 		
 		self.ports = ports
 		self.backgroundColors = {}
+		self.paused = False
+		self.stopped = False
 		
 		self.allControls = []
 		
@@ -132,6 +134,7 @@ class MyEffect(inkex.Effect):
 		self.autoConnectDialog.add(self.connectLabel)
 		self.autoConnectDialog.set_position(gtk.WIN_POS_CENTER)
 		self.autoConnectDialog.show_all()
+		self.pauseAndStopButtons.hide_all()
 		threading.Thread(target=self.autoConnect).start()
 		gtk.main()
 		
@@ -149,6 +152,7 @@ class MyEffect(inkex.Effect):
 				self.connect(2.5)
 				self.connectButton.set_label("Disconnect")
 				self.controls.show_all()
+				self.pauseAndStopButtons.hide_all()
 				break
 			except Exception as exc:
 				pass
@@ -161,6 +165,7 @@ class MyEffect(inkex.Effect):
 		
 		self.window.set_position(gtk.WIN_POS_CENTER)
 		self.window.show_all()
+		self.pauseAndStopButtons.hide_all()
 
 	def buildMainGUI(self):
 		self.window = gtk.Window(gtk.WINDOW_TOPLEVEL)
@@ -240,9 +245,9 @@ class MyEffect(inkex.Effect):
 #		b.connect("clicked", self.sendSelection, None)
 #		sendButtons.add(b)
 		
-		b = gtk.Button("▶ Send drawing")
-		b.connect("clicked", self.sendAll, None)
-		sendButtons.add(b)
+		self.sendDrawingButton = gtk.Button("▶ Send drawing")
+		self.sendDrawingButton.connect("clicked", self.sendAll, None)
+		sendButtons.add(self.sendDrawingButton)
 		
 		self.controls.pack_start(sendButtons, False, False)
 		
@@ -252,6 +257,23 @@ class MyEffect(inkex.Effect):
 		self.controls.pack_start(self.progressBar, False, False)
 
 		basicControlsPage.add(self.controls)
+		
+		self.pauseAndStopButtons = gtk.HBox(True)
+		self.pauseButton = gtk.Button("▌▌ Pause")
+		self.pauseButton.connect("clicked", self.togglePause, None)
+		self.pauseAndStopButtons.add(self.pauseButton)
+		self.stopButton = gtk.Button("■ Stop")
+		self.stopButton.connect("clicked", self.stop, None)
+		self.pauseAndStopButtons.add(self.stopButton)
+		basicControlsPage.add(self.pauseAndStopButtons)
+
+		#self.stopButton.modify_bg(gtk.STATE_NORMAL, gtk.gdk.color_parse('#f00'))
+		self.pauseButton.modify_bg(gtk.STATE_NORMAL, gtk.gdk.color_parse('#440'))
+		self.pauseButton.modify_bg(gtk.STATE_PRELIGHT, gtk.gdk.color_parse('#440'))
+		
+		self.stopButton.modify_bg(gtk.STATE_NORMAL, gtk.gdk.color_parse('#f00'))
+		self.stopButton.modify_bg(gtk.STATE_PRELIGHT, gtk.gdk.color_parse('#f00'))
+
 		
 		return basicControlsPage
 
@@ -416,6 +438,16 @@ class MyEffect(inkex.Effect):
 
 		return label
 
+	def togglePause(self, widget=None, data=None):
+		self.paused = not self.paused
+		if self.paused:
+			self.pauseButton.set_label("▶ Resume")
+		else:
+			self.pauseButton.set_label("▌▌ Pause")
+
+	def stop(self, widget=None, data=None):
+		self.stopped = True
+
 	def clearGCodeLog(self, widget=None, data=None):
 		self.gcodeLog.get_buffer().set_text("")
 		
@@ -576,6 +608,8 @@ class MyEffect(inkex.Effect):
 		self.updatePosition()
 
 	def sendAll(self, widget=None, data=None):
+		self.stopped = False
+		self.paused = False
 		self.disableControls()
 		self.progressBar.set_fraction(0.0)
 		data = self.generateBuffer()
@@ -596,16 +630,23 @@ class MyEffect(inkex.Effect):
 		try:
 			for count,line in enumerate(data):
 				gobject.idle_add(self._updateProgressBar, float(count)/len(data))
-				
 				if line != "" and line[0] != "(":
+					while self.paused and not self.stopped:
+						time.sleep(0.25)
+						
+					if self.stopped:
+						self.send("M5")
+						self.highlight(self.homeButtons)
+						break
 					self.send(line)
-			gobject.idle_add(self._updateProgressBar, 1.0)
+			if not self.stopped:
+				gobject.idle_add(self._updateProgressBar, 1.0)
+				self.highlight(self.homeButtons)
+				self.dehighlight(self.homeButtons)
 		except Exception as exc:
 			gobject.idle_add(self.showError, exc)
 		finally:
 			gobject.idle_add(self.enableControls)
-			self.highlight(self.homeButtons)
-			self.dehighlight(self.homeButtons)
 
 	def _updateProgressBar(self, fraction):
 		self.progressBar.set_text("%d%%" % int(fraction*100))
@@ -613,9 +654,13 @@ class MyEffect(inkex.Effect):
 		
 	def disableControls(self):
 		self.controls.set_sensitive(False)
+		self.pauseButton.set_label("▌▌ Pause")
+		self.pauseAndStopButtons.show_all()
 		
 	def enableControls(self):
 		self.controls.set_sensitive(True)
+		self.pauseAndStopButtons.hide_all()
+
 		
 def get_serial_ports():
 	import glob
