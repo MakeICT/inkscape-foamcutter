@@ -84,9 +84,10 @@ class PolyLine(Entity):
 			opacity = 1
 			stylePairs = self.style.split(";")
 			for sp in stylePairs:
-				k,v = sp.split(":")
-				if k == "opacity":
-					opacity = float(v)
+				if sp != '':
+					k,v = sp.split(":")
+					if k == "opacity":
+						opacity = float(v)
 
 			context.pen_down_angle = context.pen_up_angle - (context.pen_up_angle-context.pen_max_down_angle) * opacity
 
