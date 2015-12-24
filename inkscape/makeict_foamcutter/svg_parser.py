@@ -5,6 +5,8 @@ import entities
 from math import radians
 import sys, pprint
 
+curveFlatness = 0.2
+
 def parseLengthWithUnits( str ):
 	'''
 	Parse an SVG value which may or may not have units attached
@@ -83,7 +85,7 @@ class SvgPath(entities.PolyLine):
 		self.segments = []
 		for sp in p:
 			points = []
-			subdivideCubicPath(sp,0.2)  # TODO: smoothness preference
+			subdivideCubicPath(sp, curveFlatness) # TODO: smoothness preference
 			for csp in sp:
 				points.append((csp[1][0],csp[1][1]))
 			self.segments.append(points)

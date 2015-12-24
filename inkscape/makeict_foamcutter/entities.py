@@ -25,6 +25,7 @@ class Circle(Entity):
 		return "Circle at [%.2f,%.2f], radius %.2f" % (self.center[0], self.center[1], self.radius)
 	def get_gcode(self,context):
 		"Emit gcode for drawing arc"
+		
 		start = (self.center[0] - self.radius, self.center[1])
 		arc_code = "G3 I%.2f J0 F%.2f" % (self.radius, context.xy_feedrate)
 

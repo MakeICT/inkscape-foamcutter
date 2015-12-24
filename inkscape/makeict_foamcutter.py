@@ -28,8 +28,11 @@ import gobject
 import threading
 
 from math import *
+
 from makeict_foamcutter.context import GCodeContext
 from makeict_foamcutter.svg_parser import SvgParser
+
+import makeict_foamcutter
 
 try:
 	import serial
@@ -64,6 +67,7 @@ class MyEffect(inkex.Effect):
 			'numCopies': '1',
 			'continuous': 'False',
 			'pauseOnLayerChange': 'False',
+			'curveFlatness': '0.2',
 			
 		})
 		self.config.read(self.configFile)
@@ -77,6 +81,8 @@ class MyEffect(inkex.Effect):
 		
 		self.ports = ports
 		self.backgroundColors = {}
+		
+		self.allControls = []
 		
 	'''
 		Dealing with options
@@ -98,17 +104,20 @@ class MyEffect(inkex.Effect):
 		return self.config.set(self.preset, option, str(value))
 		
 	def saveOptions(self):
+		for controlInfo in self.allControls:
+			if isinstance(controlInfo['control'], gtk.ComboBox):
+				self.setOption(controlInfo['id'], controlInfo['control'].get_active_text())
+			else:
+				self.setOption(controlInfo['id'], controlInfo['control'].get_value())
+		
 		f = open(self.configFile, 'w')
 		self.config.write(f)
 		f.close()
 		
-	def optionChanged(self, widget, data=None):
-		if isinstance(data['control'], gtk.ComboBox):
-			self.setOption(data['id'], data['control'].get_active_text())
-		else:
-			self.setOption(data['id'], data['control'].get_value())
-			
+	def optionChanged(self, widget, data=None):		
+		# saveOptions will update values from ALL controls, every time. Seems silly, but some updates are being lost
 		self.saveOptions()
+			
 	'''
 		Build and display GUI
 	'''
@@ -292,8 +301,11 @@ class MyEffect(inkex.Effect):
 			serialOptions.attach(gtk.Label(c['label']), 0, 1, i, i+1)
 			serialOptions.attach(c['control'], 1, 2, i, i+1)
 			c['control'].connect('changed', self.optionChanged, c)
+			c['control'].connect('focus-out-event', self.optionChanged, c)
+			#c['control'].connect('value-changed', self.optionChanged, c)
+			
+		self.allControls.extend(controls)
 
-#		serialControlsPage.add(serialOptions)
 		serialControlsPage.pack_start(serialOptions, False, False)
 		
 		self.connectButton = gtk.Button("Connect")
@@ -331,6 +343,10 @@ class MyEffect(inkex.Effect):
 				"label": "X-Y feedrate",
 				"id": "xyFeedrate",
 				"control": gtk.SpinButton(gtk.Adjustment(500, 100, 5000, 10, 100, 0)),
+			},{
+				"label": "Curve flatness",
+				"id": "curveFlatness",
+				"control": gtk.SpinButton(gtk.Adjustment(0.2, .01, 10.0, 0.01, .1, 0), digits=2),
 #			},{
 #				"label": "Z feedrate",
 #				"control": gtk.SpinButton(gtk.Adjustment(500, 0, 1000, 10, 100, 0)),
@@ -349,6 +365,8 @@ class MyEffect(inkex.Effect):
 			c['control'].set_value(self.getFloatOption(c['id']))
 			c['control'].connect('value-changed', self.optionChanged, c)
 			
+		self.allControls.extend(controls)
+		
 		return setupPage
 
 	'''
@@ -438,6 +456,9 @@ class MyEffect(inkex.Effect):
 			self.getBooleanOption('continuous'),
 			self.svg_file
 		)
+		
+		makeict_foamcutter.svg_parser.curveFlatness = self.getFloatOption('curveFlatness')
+		
 		parser = SvgParser(self.document.getroot(), self.getBooleanOption('pauseOnLayerChange'))
 		parser.parse()
 		for entity in parser.entities:
