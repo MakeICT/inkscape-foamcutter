@@ -164,6 +164,7 @@ class MyEffect(inkex.Effect):
 
 	def buildMainGUI(self):
 		self.window = gtk.Window(gtk.WINDOW_TOPLEVEL)
+		self.window.set_default_size(640, 640)
 		self.window.connect("destroy", self.destroy)
 		self.window.set_border_width(10)
 		
