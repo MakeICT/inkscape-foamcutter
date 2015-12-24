@@ -87,8 +87,8 @@ class PolyLine(Entity):
 				k,v = sp.split(":")
 				if k == "opacity":
 					opacity = float(v)
-				
-			context.pen_down_angle = (context.pen_max_down_angle-context.pen_up_angle) * opacity + context.pen_max_down_angle
+
+			context.pen_down_angle = context.pen_up_angle - (context.pen_up_angle-context.pen_max_down_angle) * opacity
 
 			for points in self.segments:
 				start = points[0]

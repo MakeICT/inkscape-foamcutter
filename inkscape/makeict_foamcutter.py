@@ -636,6 +636,7 @@ def get_serial_ports():
 	return ports
 
 if __name__ == '__main__':   #pragma: no cover
+	#	@TODO: explore text to path. ('inkscape --verb EditSelectAllInAllLayers --verb ObjectToPath --verb FileSave --verb FileQuit %s' % sys.argv[1])
 	ports = get_serial_ports()
 	if len(ports) == 0:
 		inkex.errormsg("No serial ports found :(")
@@ -643,5 +644,3 @@ if __name__ == '__main__':   #pragma: no cover
 	else:
 		e = MyEffect(ports)
 		e.affect()		
-
-	
