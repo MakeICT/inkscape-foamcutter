@@ -164,11 +164,14 @@ class MyEffect(inkex.Effect):
 			gobject.idle_add(self.showError, "Auto-connect failed. Is the device connected and enabled?")
 		
 		self.window.set_position(gtk.WIN_POS_CENTER)
+		self.window.maximize()
 		self.window.show_all()
 		self.pauseAndStopButtons.hide_all()
 
 	def buildMainGUI(self):
 		self.window = gtk.Window(gtk.WINDOW_TOPLEVEL)
+		self.window.set_keep_above(True)
+
 		self.window.set_default_size(640, 640)
 		self.window.connect("destroy", self.destroy)
 		self.window.set_border_width(10)
@@ -681,12 +684,44 @@ def get_serial_ports():
 
 	return ports
 
+
+def showError(msg):
+	msg = str(msg)
+	message = gtk.MessageDialog(type=gtk.MESSAGE_ERROR, buttons=gtk.BUTTONS_CLOSE, message_format="Error: %s" % msg)
+	message.run()
+	message.destroy()
+
 if __name__ == '__main__':   #pragma: no cover
 	#	@TODO: explore text to path. ('inkscape --verb EditSelectAllInAllLayers --verb ObjectToPath --verb FileSave --verb FileQuit %s' % sys.argv[1])
-	ports = get_serial_ports()
-	if len(ports) == 0:
-		inkex.errormsg("No serial ports found :(")
-		inkex.errormsg("Please connect your device and try again")
+	filename = sys.argv[-1]
+	if filename.split('-')[-1] != 'pathed.svg':
+		def convertObjectsToPaths():
+			import subprocess
+			newFilename = '%s-pathed.svg' % filename
+			subprocess.call(['cp', filename, newFilename])
+			cmd = 'inkscape --verb EditSelectAllInAllLayers --verb ObjectToPath --verb FileSave --verb FileQuit %s' % newFilename
+			subprocess.call(cmd.split(' '))
+			subprocess.call([sys.executable, sys.argv[0], newFilename])
+			#window.destroy()
+
+		# @TODO: figure out why subprocess hangs when called from separate thread
+#		window = gtk.Window(gtk.WINDOW_TOPLEVEL)
+#		window.set_keep_above(True)
+#		window.set_position(gtk.WIN_POS_CENTER)
+#		window.maximize()
+#		
+#		window.add(gtk.Label('Please wait...'))
+#		
+#		window.show_all()
+#		
+#		threading.Thread(target=convertObjectsToPaths).start()
+#		gtk.main()
+		convertObjectsToPaths()
 	else:
-		e = MyEffect(ports)
-		e.affect()		
+		ports = get_serial_ports()
+		if len(ports) == 0:
+			inkex.errormsg("No serial ports found :(")
+			inkex.errormsg("Please connect your device and try again")
+		else:
+			e = MyEffect(ports)
+			e.affect()		
