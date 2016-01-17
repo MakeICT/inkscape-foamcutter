@@ -25,7 +25,7 @@ import getopt
 import gtk
 import ConfigParser
 import gobject
-import threading
+#import threading
 
 from math import *
 
@@ -695,6 +695,9 @@ if __name__ == '__main__':   #pragma: no cover
 	#	@TODO: explore text to path. ('inkscape --verb EditSelectAllInAllLayers --verb ObjectToPath --verb FileSave --verb FileQuit %s' % sys.argv[1])
 	filename = sys.argv[-1]
 	if filename.split('-')[-1] != 'pathed.svg':
+		gtk.gdk.threads_init()
+		window = gtk.Window(gtk.WINDOW_TOPLEVEL)
+
 		def convertObjectsToPaths():
 			import subprocess
 			newFilename = '%s-pathed.svg' % filename
@@ -702,21 +705,20 @@ if __name__ == '__main__':   #pragma: no cover
 			cmd = 'inkscape --verb EditSelectAllInAllLayers --verb ObjectToPath --verb FileSave --verb FileQuit %s' % newFilename
 			subprocess.call(cmd.split(' '))
 			subprocess.call([sys.executable, sys.argv[0], newFilename])
-			#window.destroy()
+			gtk.mainquit()
 
-		# @TODO: figure out why subprocess hangs when called from separate thread
-#		window = gtk.Window(gtk.WINDOW_TOPLEVEL)
-#		window.set_keep_above(True)
-#		window.set_position(gtk.WIN_POS_CENTER)
-#		window.maximize()
-#		
-#		window.add(gtk.Label('Please wait...'))
-#		
-#		window.show_all()
-#		
-#		threading.Thread(target=convertObjectsToPaths).start()
-#		gtk.main()
-		convertObjectsToPaths()
+		window.set_keep_above(True)
+		window.set_position(gtk.WIN_POS_CENTER)
+		window.maximize()
+		
+		label = gtk.Label('<span size="48000">Please wait...</span>')
+		label.set_use_markup(True)
+		window.add(label)
+		
+		window.show_all()
+		
+		gobject.idle_add(convertObjectsToPaths)
+		gtk.main()
 	else:
 		ports = get_serial_ports()
 		if len(ports) == 0:
