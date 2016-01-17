@@ -25,7 +25,7 @@ import getopt
 import gtk
 import ConfigParser
 import gobject
-#import threading
+import threading
 
 from math import *
 
