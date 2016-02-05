@@ -699,12 +699,11 @@ if __name__ == '__main__':   #pragma: no cover
 		window = gtk.Window(gtk.WINDOW_TOPLEVEL)
 
 		def convertObjectsToPaths():
-			import subprocess
 			newFilename = '%s-pathed.svg' % filename
 			subprocess.call(['cp', filename, newFilename])
 			cmd = 'inkscape --verb EditSelectAllInAllLayers --verb ObjectToPath --verb FileSave --verb FileQuit %s' % newFilename
-			subprocess.call(cmd.split(' '))
-			subprocess.call([sys.executable, sys.argv[0], newFilename])
+			os.system(cmd)
+			os.system('"%s" "%s" "%s" &' % (sys.executable, sys.argv[0], newFilename))
 			gtk.mainquit()
 
 		window.set_keep_above(True)
