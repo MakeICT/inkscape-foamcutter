@@ -89,16 +89,19 @@ class PolyLine(Entity):
 					if k == "opacity":
 						opacity = float(v)
 
-			context.pen_down_angle = context.pen_up_angle - (context.pen_up_angle-context.pen_max_down_angle) * opacity
+			# only process if it's not invisible
+			if opacity > 0:
+				# Adjust depth of cut according to the opacity
+				context.pen_down_angle = context.pen_up_angle - (context.pen_up_angle-context.pen_max_down_angle) * opacity
 
-			for points in self.segments:
-				start = points[0]
-	
-				context.go_to_point(start[0],start[1])
-				context.start()
-				for point in points[1:]:
-					context.draw_to_point(point[0],point[1])
-					context.last = point
-				context.stop()
-				context.codes.append("")
+				for points in self.segments:
+					start = points[0]
+		
+					context.go_to_point(start[0],start[1])
+					context.start()
+					for point in points[1:]:
+						context.draw_to_point(point[0],point[1])
+						context.last = point
+					context.stop()
+					context.codes.append("")
 
