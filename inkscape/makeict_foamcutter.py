@@ -692,17 +692,16 @@ def showError(msg):
 	message.destroy()
 
 if __name__ == '__main__':   #pragma: no cover
-	#	@TODO: explore text to path. ('inkscape --verb EditSelectAllInAllLayers --verb ObjectToPath --verb FileSave --verb FileQuit %s' % sys.argv[1])
 	filename = sys.argv[-1]
 	if filename.split('-')[-1] != 'pathed.svg':
 		gtk.gdk.threads_init()
 		window = gtk.Window(gtk.WINDOW_TOPLEVEL)
 
-		def convertObjectsToPaths():
+		def convertObjectsAndReRun():
 			newFilename = '%s-pathed.svg' % filename
-			subprocess.call(['cp', filename, newFilename])
-			cmd = 'inkscape --verb EditSelectAllInAllLayers --verb ObjectToPath --verb FileSave --verb FileQuit %s' % newFilename
-			os.system(cmd)
+			# @TODO: make this Windows friendly
+			os.system('cp "%s" "%s"' % (filename, newFilename))
+			os.system('inkscape --verb EditSelectAllInAllLayers --verb ObjectToPath --verb FileSave --verb FileQuit %s' % newFilename)
 			os.system('"%s" "%s" "%s" &' % (sys.executable, sys.argv[0], newFilename))
 			gtk.mainquit()
 
@@ -716,7 +715,7 @@ if __name__ == '__main__':   #pragma: no cover
 		
 		window.show_all()
 		
-		gobject.idle_add(convertObjectsToPaths)
+		gobject.idle_add(convertObjectsAndReRun)
 		gtk.main()
 	else:
 		ports = get_serial_ports()
