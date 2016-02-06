@@ -82,26 +82,41 @@ class PolyLine(Entity):
 
 		if hasattr(self, 'segments'):
 			opacity = 1
+			filled = False
+			stroked = False
+			fillOpacity = 1
+			strokeOpacity = 1
+			
 			stylePairs = self.style.split(";")
 			for sp in stylePairs:
 				if sp != '':
 					k,v = sp.split(":")
 					if k == "opacity":
 						opacity = float(v)
+					elif k == "fill-opacity":
+						fillOpacity = float(v)
+					elif k == "stroke-opacity":
+						strokeOpacity = float(v)
+					elif k == "fill":
+						filled = (v != "none")
+					elif k == "stroke":
+						stroked = (v != "none")
 
 			# only process if it's not invisible
 			if opacity > 0:
-				# Adjust depth of cut according to the opacity
-				context.pen_down_angle = context.pen_up_angle - (context.pen_up_angle-context.pen_max_down_angle) * opacity
+				# make sure the fill is turned on AND visible as well as the stroke
+				if (filled and fillOpacity > 0) or (stroked and strokeOpacity > 0):
+					# Adjust depth of cut according to the opacity
+					context.pen_down_angle = context.pen_up_angle - (context.pen_up_angle-context.pen_max_down_angle) * opacity
 
-				for points in self.segments:
-					start = points[0]
-		
-					context.go_to_point(start[0],start[1])
-					context.start()
-					for point in points[1:]:
-						context.draw_to_point(point[0],point[1])
-						context.last = point
-					context.stop()
-					context.codes.append("")
+					for points in self.segments:
+						start = points[0]
+			
+						context.go_to_point(start[0],start[1])
+						context.start()
+						for point in points[1:]:
+							context.draw_to_point(point[0],point[1])
+							context.last = point
+						context.stop()
+						context.codes.append("")
 
