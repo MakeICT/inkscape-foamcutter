@@ -170,6 +170,7 @@ class MyEffect(inkex.Effect):
 
 	def buildMainGUI(self):
 		self.window = gtk.Window(gtk.WINDOW_TOPLEVEL)
+		self.window.set_title("MakeICT Foam Cutter Sender")
 		self.window.set_keep_above(True)
 
 		self.window.set_default_size(640, 640)
