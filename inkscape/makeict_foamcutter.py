@@ -184,7 +184,7 @@ class MyEffect(inkex.Effect):
 		self.notebook.append_page(self._buildGCodeLogPage(), gtk.Label("GCode Tools"))
 		self.notebook.append_page(self._buildAboutPage(), gtk.Label("About"))
 		self.window.add(self.notebook)
-
+		
 	'''
 		Basic Controls Page
 	'''
@@ -513,6 +513,7 @@ class MyEffect(inkex.Effect):
 			raise Exception("Invalid response: '%s'" % ok)
 		
 	def destroy(self, widget, data=None):
+		self.disconnect()
 		self.stopped = True
 		gtk.main_quit()
 
@@ -675,7 +676,8 @@ def get_serial_ports():
 
 	elif sys.platform.startswith('linux') or sys.platform.startswith('cygwin'):
 		# this is to exclude your current terminal "/dev/tty"
-		ports = glob.glob('/dev/tty[A-Za-z]*')
+		ports = glob.glob('/dev/tty*')
+		ports.extend(glob.glob('/dev/pts/*'))
 
 	elif sys.platform.startswith('darwin'):
 		ports = glob.glob('/dev/tty.*')
