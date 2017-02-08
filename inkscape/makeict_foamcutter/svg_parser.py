@@ -219,12 +219,14 @@ class SvgParser:
 				'in': 90.0,
 				'ft': 1080.0,
 				'mm': 1.0 / 0.28222,
+				'cm': 1.0 / 0.028222,
 		}
 		
 		if str:
 			v, u = parseLengthWithUnits( str )
 			if not v:
 				# Couldn't parse the value
+				inkex.debug("Couldn't parse %s" % str)
 				return None
 			elif ( u == '' ) or ( u == 'px' ):
 				return v
@@ -233,6 +235,7 @@ class SvgParser:
 			elif u == '%':
 				return float( default ) * v / 100.0
 			else:
+				inkex.debug("Unsported units %s" % str)
 				# Unsupported units
 				return None
 		else:
