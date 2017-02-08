@@ -124,6 +124,10 @@ class MyEffect(inkex.Effect):
 		Build and display GUI
 	'''
 	def effect(self):
+		versionString = self.document.getroot().get('{http://www.inkscape.org/namespaces/inkscape}version')
+		if versionString is None or versionString == '':
+			raise Exception('Please save your file first.')
+
 		gobject.threads_init() 
 		self.buildMainGUI()
 		
@@ -136,6 +140,7 @@ class MyEffect(inkex.Effect):
 		self.autoConnectDialog.show_all()
 		self.pauseAndStopButtons.hide_all()
 		threading.Thread(target=self.autoConnect).start()
+
 		gtk.main()
 		
 	def _updateConnectLabel(self):
@@ -143,13 +148,14 @@ class MyEffect(inkex.Effect):
 
 	'''
 		Auto-connect
+		this runs in a separate thread
 	'''
 	def autoConnect(self):
 		for i, p in enumerate(self.ports):
 			self.portSelector.set_active(i)
 			gobject.idle_add(self._updateConnectLabel)
 			try:
-				self.connect(2.5)
+				self.connect(None)
 				self.connectButton.set_label("Disconnect")
 				self.controls.show_all()
 				self.pauseAndStopButtons.hide_all()
@@ -157,12 +163,19 @@ class MyEffect(inkex.Effect):
 			except Exception as exc:
 				pass
 
-		self.autoConnectDialog.hide()
+		gobject.idle_add(self.autoConnectDialog.hide)
 		if self.serial is None or self.serial == None:
 			gobject.idle_add(self.controls.hide)
 			gobject.idle_add(self.notebook.set_current_page, 2)
-			gobject.idle_add(self.showError, "Auto-connect failed. Is the device connected and enabled?")
+			def showErrorThenWindow():
+				self.showError("Auto-connect failed. Is the device connected and enabled?")
+				self._showMainWindow()
+				
+			gobject.idle_add(showErrorThenWindow)
+		else:
+			gobject.idle_add(self._showMainWindow)
 		
+	def _showMainWindow(self):
 		self.window.set_position(gtk.WIN_POS_CENTER)
 		self.window.maximize()
 		self.window.show_all()
@@ -171,7 +184,7 @@ class MyEffect(inkex.Effect):
 	def buildMainGUI(self):
 		self.window = gtk.Window(gtk.WINDOW_TOPLEVEL)
 		self.window.set_title("MakeICT Foam Cutter Sender")
-		self.window.set_keep_above(True)
+		#self.window.set_keep_above(True)
 
 		self.window.set_default_size(640, 640)
 		self.window.connect("destroy", self.destroy)
@@ -508,7 +521,9 @@ class MyEffect(inkex.Effect):
 			raise Exception("Not connected :(")
 		
 		self.serial.write("%s\n" % message)
-		ok = self.serial.read(2).decode("ascii")
+		time.sleep(1)
+		ok = self.serial.read(2)
+
 		if ok != "ok":
 			raise Exception("Invalid response: '%s'" % ok)
 		
@@ -530,8 +545,8 @@ class MyEffect(inkex.Effect):
 			self.disconnect()
 			self.connectButton.set_label("Connect")
 			self.controls.hide()
-		
-	def connect(self, timeout=10):
+			
+	def connect(self, timeout=5):
 		try:
 			self.serial = serial.Serial()
 			self.serial.port = self.getOption('serialPort')
@@ -546,13 +561,13 @@ class MyEffect(inkex.Effect):
 				self.serial.dsrdtr = True
 			
 			self.serial.open()
-			initString = self.serial.read(19).decode("ascii")
+			time.sleep(3)
+			initString = self.serial.read(19)
 			if initString != "MakeICT Foam Cutter":
 				s = "Invalid init string: '%s'" % initString
 				raise Exception(s)
 
-			self.serial.timeout = None
-
+			# don't change the serial.timeout value here. You will die.
 			self.send("G21 (metric ftw)")
 			self.send("G90 (absolute mode)")
 			self.send("G92 X%0.2f Y%0.2f" % (self.pos[0], self.pos[1]))
@@ -672,7 +687,7 @@ def get_serial_ports():
 	import serial
 	
 	if sys.platform.startswith('win'):
-		ports = ['COM' + str(i + 1) for i in range(256)]
+		ports = ['COM' + str(i + 1) for i in range(16)]
 
 	elif sys.platform.startswith('linux') or sys.platform.startswith('cygwin'):
 		# this is to exclude your current terminal "/dev/tty"
@@ -696,7 +711,15 @@ def showError(msg):
 
 if __name__ == '__main__':   #pragma: no cover
 	filename = sys.argv[-1]
-	if filename.split('-')[-1] != 'pathed.svg':
+	if 'pathed.svg' in filename or sys.platform.startswith('win'):
+		ports = get_serial_ports()
+		if len(ports) == 0:
+			inkex.errormsg("No serial ports found :(")
+			inkex.errormsg("Please connect your device and try again")
+		else:
+			e = MyEffect(ports)
+			e.affect()		
+	else:
 		gtk.gdk.threads_init()
 		window = gtk.Window(gtk.WINDOW_TOPLEVEL)
 
@@ -720,11 +743,3 @@ if __name__ == '__main__':   #pragma: no cover
 		
 		gobject.idle_add(convertObjectsAndReRun)
 		gtk.main()
-	else:
-		ports = get_serial_ports()
-		if len(ports) == 0:
-			inkex.errormsg("No serial ports found :(")
-			inkex.errormsg("Please connect your device and try again")
-		else:
-			e = MyEffect(ports)
-			e.affect()		
