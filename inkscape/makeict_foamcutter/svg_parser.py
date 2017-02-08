@@ -247,12 +247,17 @@ class SvgParser:
 		self.svgWidth = self.getLength('width', 354) * 0.28222
 		self.svgHeight = self.getLength('height', 354) * 0.28222
 		
-#		self.recursivelyTraverseSvg(self.svg, [[0.28222, 0.0, -(self.svgWidth/2.0)], [0.0, -0.28222, (self.svgHeight/2.0)]])
+		versionString = self.svg.get('{http://www.inkscape.org/namespaces/inkscape}version')
+		inkscapeVersion = versionString.split()[0]
+		if inkscapeVersion < '0.92':
+			scale = 0.28222
+		else:
+			scale = 1
 
 		self.recursivelyTraverseSvg(
 			self.svg, [
-				[-0.28222, 0.0,     0],
-				[0.0,     -0.28222, self.svgHeight]
+				[-scale, 0.0, 0],
+				[0.0, -scale, self.svgHeight]
 			]
 		)
 
