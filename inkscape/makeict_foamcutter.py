@@ -155,7 +155,7 @@ class MyEffect(inkex.Effect):
 			self.portSelector.set_active(i)
 			gobject.idle_add(self._updateConnectLabel)
 			try:
-				self.connect(None)
+				self.connect()
 				self.connectButton.set_label("Disconnect")
 				self.controls.show_all()
 				self.pauseAndStopButtons.hide_all()
@@ -514,6 +514,17 @@ class MyEffect(inkex.Effect):
 			entity.get_gcode(self.context)
 			
 		return self.context.generate()
+	
+	
+	def readFromSerial(self, byteCount=1, timeout=30):
+		startTime = time.time()
+		serialBuffer = ''
+		while len(serialBuffer) < byteCount:
+			if (time.time()-startTime) >= timeout:
+				raise Exception("Timed out waiting for response :(")
+				
+			serialBuffer += self.serial.read()
+		return serialBuffer
 		
 	def send(self, message):
 		if self.serial is None:
@@ -522,7 +533,7 @@ class MyEffect(inkex.Effect):
 		
 		self.serial.write("%s\n" % message)
 		time.sleep(1)
-		ok = self.serial.read(2)
+		ok = self.readFromSerial(2)
 
 		if ok != "ok":
 			raise Exception("Invalid response: '%s'" % ok)
@@ -546,8 +557,11 @@ class MyEffect(inkex.Effect):
 			self.connectButton.set_label("Connect")
 			self.controls.hide()
 			
-	def connect(self, timeout=5):
+	def connect(self, timeout=0):
 		try:
+			if self.serial:
+				self.serial.close()
+				
 			self.serial = serial.Serial()
 			self.serial.port = self.getOption('serialPort')
 			self.serial.baudrate = self.getFloatOption('serialBaudRate')
@@ -561,8 +575,7 @@ class MyEffect(inkex.Effect):
 				self.serial.dsrdtr = True
 			
 			self.serial.open()
-			time.sleep(3)
-			initString = self.serial.read(19)
+			initString = self.readFromSerial(19, 5)
 			if initString != "MakeICT Foam Cutter":
 				s = "Invalid init string: '%s'" % initString
 				raise Exception(s)
