@@ -532,7 +532,6 @@ class MyEffect(inkex.Effect):
 			raise Exception("Not connected :(")
 		
 		self.serial.write("%s\n" % message)
-		time.sleep(1)
 		ok = self.readFromSerial(2)
 
 		if ok != "ok":
